@@ -1,0 +1,2 @@
+#!/bin/sh
+julia --threads 10 --color=yes --depwarn=no --project=@. -q -L $(dirname $0)/../bootstrap.jl -- "$@"
