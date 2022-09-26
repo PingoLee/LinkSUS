@@ -49,7 +49,7 @@ end
   bt_ini::R{Bool} = false
 
   # bancos
-  bds_list::R{Vector} = get_bds(); bdsel::R{Int64} = get_bds()[1]; bdobs::String = ""
+  bds_list::R{Vector} = get_bds(); bdsel::R{Any} = 1; bdobs::R{String} = ""; bdobs_bt::R{Bool} = false
 
  
 end
@@ -85,8 +85,14 @@ Stipple.js_methods(m::Config) = raw"""
   """
 
 function handlers(model::Config)  
-  onbutton(model.bt_ini) do tb
-    print(tb)
+  onbutton(model.bdobs_bt) do 
+    print("foi")
+    sql = """UPDATE bancos
+                SET 
+                obs = '$(model.bdobs[])'
+                WHERE id = $(model.bdsel[]);"""
+
+    DBInterface.execute(db, sql)    
   end 
 
   on(model.bdsel) do tb

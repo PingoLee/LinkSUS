@@ -66,10 +66,11 @@
             <br>
             <q-input
               label="Descrição do banco"
-              v-model="bdsel.obs"
+              v-model="bdobs"
               filled
               type="textarea"
             />
+            <q-btn round v-on:click="bdobs_bt=true" color="primary" icon="drive_file_rename_outline" />
           </q-card-section>
 
           
