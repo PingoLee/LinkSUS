@@ -29,7 +29,7 @@ freq_unm.unm = map(x -> string(x), freq_unm.unm)
 # db = SQLite.DB("C://Users//rafa//.julia//geniebuilder//apps//LinkSUS//data//linksus.db") 
 #using DataFrames
 
-register_mixin(@__MODULE__)
+@mixin(@__MODULE__)
 
 export Importar
 
@@ -42,6 +42,7 @@ function cruzamentos()
   return c
 end
 
+# seleciona o cruzamento
 function cruzamento(crz::String)
   df = DBInterface.execute(db, "select tb.id, b1.abrev as b1, b2.abrev as b2 from tipo_cruzamento as tb inner join bancos as b1 on b1.id = tb.b1_id inner join bancos as b2 on b2.id = tb.b2_id  where tb.nome='$crz'") |> DataFrame  
   return df[1, :]
@@ -291,7 +292,7 @@ function receb_arquivos()
   write(joinpath("data", "linksus", "bruto", string(b2.file, splitext(f.name)[2])), f.data)
   df1 = getfield(importadores, Symbol(b2.function))(joinpath("data", "linksus", "bruto", string(b2.file, splitext(f.name)[2]))) # Importa a base de dados como df
   
-  show(df1)
+  #show(df1)
 
   erro, resp = valida_bancos(db, df1, b2, resp)
   erro && (return Json.json(resp))

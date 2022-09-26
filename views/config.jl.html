@@ -1,0 +1,84 @@
+<div>
+    <q-toolbar class="bg-primary text-white">    
+      <q-avatar>
+        <img src="https://cdn.quasar.dev/logo-v2/svg/logo-mono-white.svg">
+      </q-avatar>
+
+      <q-toolbar-title>LinkSUS</q-toolbar-title>
+
+      <q-space />   
+      <q-btn-dropdown stretch flat icon="settings">
+        <q-list>
+          <q-item-label header>O que quer fazer?</q-item-label>
+          <q-item clickable v-close-popup tabindex="0" href="/">
+            <q-item-section avatar>
+              <q-avatar icon="more_vert" color="secondary" text-color="white" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label >Linkage</q-item-label>              
+            </q-item-section>
+            <q-item-section side>
+              <q-icon name="info" />
+            </q-item-section>
+          </q-item>         
+        </q-list>
+      </q-btn-dropdown>
+
+    </q-toolbar>
+  </div>
+  
+  
+  <div class="q-pa-md">
+    <div class="row q-col-gutter-sm">
+      <div class="col-6">
+        <q-card flat bordered class="my-card">
+          <q-card-section>
+            <div class="text-h5">Colunas do banco</div>
+          </q-card-section>
+          <q-table
+            title="Váriaves disponíveis para o cruzamento de dados"
+            :data="col_imp"
+            :columns="col_def"
+            row-key="id"
+            dense
+            :visible-columns="vis_cols"
+          >
+            <template v-slot:body-cell-actions="props">
+              <q-td :props="props">
+                <q-btn dense round flat color="grey" v-on:click="editRow(props)" icon="edit"></q-btn>
+                <q-btn dense round flat color="grey" v-on:click="deleteRow(props)" icon="delete"></q-btn>
+              </q-td>          
+            </template>
+          </q-table>
+        </q-card>
+      </div>
+      <div class="col-6">
+        <q-card flat bordered class="my-card">
+          <q-card-section>
+            <div class="text-h5">Dados do banco</div>
+          </q-card-section>
+
+          <q-card-section class="q-pt-none">
+            <q-select filled v-model="bdsel" :options="bds_list" label="Bases de dados" map-options emit-value
+            option-label="nome" option-value="id" />              
+            </q-select>    
+
+            <br>
+            <q-input
+              label="Descrição do banco"
+              v-model="bdsel.obs"
+              filled
+              type="textarea"
+            />
+          </q-card-section>
+
+          
+
+        </q-card>
+
+      </div>
+            
+      
+  </div>
+
+<footer class="st-footer q-pa-sm">Powered by Genie</footer>

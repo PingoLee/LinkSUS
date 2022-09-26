@@ -7,6 +7,7 @@ using Stipple.Pages
 using Stipple.ModelStorage.Sessions
 
 using LinkSUS.Pag_ini
+using LinkSUS.Pag_config
 
 if Genie.Configuration.isprod()
   Genie.Assets.assets_config!([Genie, Stipple, StippleUI, StipplePlotly], host = "https://cdn.statically.io/gh/GenieFramework")
@@ -25,3 +26,10 @@ end
 route("/cruzar", method = GET) do  
   return Pag_ini.blocagem()
 end
+
+
+# CONFIGURAÇÃO
+Page("/config", view = "views/config.jl.html",
+          layout = "layouts/app.jl.html",
+          model = () -> init_from_storage(Config, debounce = 30) |> Pag_config.handlers,
+          context = @__MODULE__)

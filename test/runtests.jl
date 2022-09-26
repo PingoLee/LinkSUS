@@ -27,3 +27,4 @@ Logging.global_logger(NullLogger())
 end
 
 #include("models//Pag_ini.jl")
+#include("models//Pag_config.jl")
