@@ -32,24 +32,33 @@
     <div class="row q-col-gutter-sm">
       <div class="col-6">
         <q-card flat bordered class="my-card">
-          <q-card-section>
-            <div class="text-h5">Colunas do banco</div>
+          <q-card-section class="bg-primary text-white">
+            <div class="row items-center no-wrap">
+              <div class="col">
+                <div class="text-h5 text-white">Colunas do banco</div>
+              </div>
+              <div class="col-auto">
+                <q-btn dense square v-on:click="add_col()" color="primary" icon="add" label="Adicionar colunas" class="btn-fixed-width" />
+              </div>
+            </div>
           </q-card-section>
-          <q-table
-            title="Váriaves disponíveis para o cruzamento de dados"
-            :data="col_imp"
-            :columns="col_def"
-            row-key="id"
-            dense
-            :visible-columns="vis_cols"
-          >
-            <template v-slot:body-cell-actions="props">
-              <q-td :props="props">
-                <q-btn dense round flat color="grey" v-on:click="editRow(props)" icon="edit"></q-btn>
-                <q-btn dense round flat color="grey" v-on:click="deleteRow(props)" icon="delete"></q-btn>
-              </q-td>          
-            </template>
-          </q-table>
+          <q-card-section>
+            <q-table
+              title="Váriaves disponíveis para o cruzamento de dados"
+              :data="col_imp"
+              :columns="col_def"
+              row-key="id"
+              dense
+              :visible-columns="vis_cols"
+            >
+              <template v-slot:body-cell-actions="props">
+                <q-td :props="props">
+                  <q-btn dense round flat color="grey" v-on:click="editRow(props)" icon="edit"></q-btn>
+                  <q-btn dense round flat color="grey" v-on:click="deleteRow(props)" icon="delete"></q-btn>
+                </q-td>          
+              </template>
+            </q-table>
+          </q-card-section>
         </q-card>
       </div>
       <div class="col-6">
@@ -70,16 +79,82 @@
               filled
               type="textarea"
             />
-            <q-btn round v-on:click="bdobs_bt=true" color="primary" icon="drive_file_rename_outline" />
+           
           </q-card-section>
-
           
-
+          <q-card-actions align="right">    
+            <q-btn round v-on:click="bdobs_bt=true" color="primary" icon="drive_file_rename_outline" />
+          </q-card-actions>
+          
         </q-card>
 
       </div>
-            
-      
+    </div>
+    <q-dialog v-model="show_dialog">
+      <q-card style="width: 600px; max-width: 60vw">
+        <q-card-section>
+          <q-btn round flat dense icon="close" class="float-right" color="grey-8" v-close-popup></q-btn>
+          <div v-if="edit_row.id == 0" class="text-h6">Criar variavel</div>
+          <div v-else class="text-h6">Atualizar variavel</div>
+        </q-card-section>
+        <q-separator inset></q-separator>
+        <q-card-section class="q-pt-none">
+          <q-form class="q-gutter-md">
+            <br>
+            <q-banner inline-actions rounded class="bg-orange text-white">
+              A váriavel deve ser digitada da mesma forma como é apresentada no banco
+            </q-banner>
+
+            <q-list>               
+              <q-item>
+                <q-item-section>
+                  <q-item-label class="q-pb-xs">Variável</q-item-label>
+                  <q-badge v-show="edit_row.ordem <= 8" color="red" align="top">Deve ser selecionado: {{col_obr[edit_row.ordem]}}</q-badge>
+                  <q-input dense outlined v-model="edit_row.col" />
+                  
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section>
+                  <q-item-label class="q-pb-xs">Função</q-item-label>
+                  <q-input dense outlined v-model="edit_row.function" />
+                </q-item-section>
+              </q-item>  
+              <q-item v-show="edit_row.ordem > 8">
+                <q-item-section>
+                  <q-toggle
+                    v-model="edit_row.obrig"
+                    checked-icon="check"
+                    color="green"
+                    unchecked-icon="clear"
+                    label="A variável é obrigatória?"
+                  />
+                </q-item-section>
+              </q-item>            
+            </q-list>
+          </q-form>
+        </q-card-section>
+        <q-card-section>
+          <q-card-actions align="right">
+            <q-btn
+              flat
+              label="Cancelar"
+              color="red"
+              dense
+              v-close-popup
+            ></q-btn>
+            <q-btn
+              flat
+              label="Salvar"
+              color="primary"
+              dense
+              v-close-popup
+              v-on:click="edit_bt=true"
+            ></q-btn>
+          </q-card-actions>
+        </q-card-section>
+      </q-card>
+    </q-dialog>      
   </div>
 
 <footer class="st-footer q-pa-sm">Powered by Genie</footer>

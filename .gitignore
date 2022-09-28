@@ -42,4 +42,5 @@ Thumbs.db
 node_modules/
 
 # Database
-db/*.sqlite
+data/linksus/bruto
+data/linksus/importado

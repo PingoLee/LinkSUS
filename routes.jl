@@ -9,6 +9,10 @@ using Stipple.ModelStorage.Sessions
 using LinkSUS.Pag_ini
 using LinkSUS.Pag_config
 
+import Genie.Renderer.Html: normal_element, register_normal_element
+register_normal_element("q__td", context = @__MODULE__)
+
+
 if Genie.Configuration.isprod()
   Genie.Assets.assets_config!([Genie, Stipple, StippleUI, StipplePlotly], host = "https://cdn.statically.io/gh/GenieFramework")
 end
