@@ -31,6 +31,7 @@
   <div class="q-pa-md">
     <div class="row q-col-gutter-sm">
       <div class="col-6">
+        <!-- Table of columns to import database -->
         <q-card flat bordered class="my-card">
           <q-card-section class="bg-primary text-white">
             <div class="row items-center no-wrap">
@@ -38,23 +39,89 @@
                 <div class="text-h5 text-white">Colunas do banco</div>
               </div>
               <div class="col-auto">
-                <q-btn dense square v-on:click="add_col()" color="primary" icon="add" label="Adicionar colunas" class="btn-fixed-width" />
+                <q-btn dense square v-on:click="add_mult_var()" color="primary" icon="playlist_add" label="Mult. variável" class="btn-fixed-width" />
+                <q-btn dense square v-on:click="add_col()" color="primary" icon="add" label="Adicionar variável" class="btn-fixed-width" />
               </div>
             </div>
           </q-card-section>
           <q-card-section>
             <q-table
-              title="Váriaves disponíveis para o cruzamento de dados"
+              title="Variáveis disponíveis para o cruzamento de dados"
               :data="col_imp"
               :columns="col_def"
               row-key="id"
               dense
+              :filter="col_filter"
               :visible-columns="vis_cols"
-            >
+            > 
+
+              <template v-slot:top-right>                
+                <q-input dense debounce="300" color="primary" v-model="col_filter">
+                  <template v-slot:append>
+                    <q-icon name="search" />
+                  </template>
+                </q-input>
+              </template>
+
+              <template v-slot:body-cell-obrig="props">
+                <q-td :props="props">
+                  <q-toggle
+                    v-on:input="obrigRow(props)"
+                    :disable="props.row.ordem < 9"
+                    v-model="props.row.obrig"
+                    checked-icon="check"
+                    color="green"
+                    unchecked-icon="clear"                    
+                  />    
+                </q-td>
+              </template>
+
               <template v-slot:body-cell-actions="props">
                 <q-td :props="props">
-                  <q-btn dense round flat color="grey" v-on:click="editRow(props)" icon="edit"></q-btn>
-                  <q-btn dense round flat color="grey" v-on:click="deleteRow(props)" icon="delete"></q-btn>
+                  <q-btn  dense round flat color="grey" v-on:click="editRow(props)" icon="edit"></q-btn>
+                  <q-btn :disable="props.row.ordem < 9" dense round flat color="grey" v-on:click="deleteRow(props)" icon="delete"></q-btn>
+                </q-td>          
+              </template>
+            </q-table>
+          </q-card-section>
+        </q-card>
+
+        <br>
+
+        <!-- Table of replcacing from columns' variables to import database -->
+        <q-card flat bordered class="my-card">
+          <q-card-section class="bg-primary text-white">
+            <div class="row items-center no-wrap">
+              <div class="col">
+                <div class="text-h5 text-white">Lista de substituições</div>
+              </div>
+              <div class="col-auto">                
+                <q-btn dense square v-on:click="add_replc_col()" color="primary" icon="add" label="Adicionar substituição" class="btn-fixed-width" />
+              </div>
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <q-table
+              title="Variáveis substituídas na importação dos bancos"
+              :data="col_replc"
+              :columns="col_replc_def"
+              row-key="id"
+              :filter="col_replc_filter"
+              dense
+              :visible-columns="vis_cols_replc"
+            > 
+              <template v-slot:top-right>                
+                <q-input dense debounce="300" color="primary" v-model="col_replc_filter">
+                  <template v-slot:append>
+                    <q-icon name="search" />
+                  </template>
+                </q-input>
+              </template>
+
+              <template v-slot:body-cell-actions="props">
+                <q-td :props="props">
+                  <q-btn dense round flat color="grey" v-on:click="edit_replc_col(props)" icon="edit"></q-btn>
+                  <q-btn dense round flat color="grey" v-on:click="del_replc_col(props)" icon="delete"></q-btn>
                 </q-td>          
               </template>
             </q-table>
@@ -88,8 +155,43 @@
           
         </q-card>
 
+        <br>
+
+        <!-- Table with fuction for pré-processing variables to import database -->
+        <q-card flat bordered class="my-card">
+          <q-card-section class="bg-primary text-white">
+            <div class="row items-center no-wrap">
+              <div class="col">
+                <div class="text-h5 text-white">Lista de funções de pré-processamento</div>
+              </div>
+              <div class="col-auto">                
+                <q-btn dense square v-on:click="add_prep_col()" color="primary" icon="add" label="Adicionar função" class="btn-fixed-width" />
+              </div>
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <q-table
+              title="Funções de pré-processamento na importação dos bancos"
+              :data="col_prep"
+              :columns="col_prep_def"
+              row-key="id"
+              dense
+              :visible-columns="vis_cols_prep"
+            >
+              <template v-slot:body-cell-actions="props">
+                <q-td :props="props">
+                  <q-btn dense round flat color="grey" v-on:click="edit_prep_col(props)" icon="edit"></q-btn>
+                  <q-btn dense round flat color="grey" v-on:click="del_prep_col(props)" icon="delete"></q-btn>
+                </q-td>          
+              </template>
+            </q-table>
+          </q-card-section>
+        </q-card>
+
       </div>
     </div>
+
+    <!-- add/edit itens individual COL -->
     <q-dialog v-model="show_dialog">
       <q-card style="width: 600px; max-width: 60vw">
         <q-card-section>
@@ -155,6 +257,164 @@
         </q-card-section>
       </q-card>
     </q-dialog>      
+
+    <!-- add itens in bulk -->
+    <q-dialog v-model="show_mul_col">
+      <q-card style="width: 600px; max-width: 60vw">
+        <q-card-section>
+          <q-btn round flat dense icon="close" class="float-right" color="grey-8" v-close-popup></q-btn>
+          <div class="text-h6">Inserir multiplas variáveis</div>       
+        </q-card-section>
+        <q-separator inset></q-separator>
+        <q-card-section class="q-pt-none">
+          <q-form class="q-gutter-md">
+            <br>
+            <q-banner inline-actions rounded class="bg-orange text-white">
+              A váriavel deve ser digitada da mesma forma como é apresentada no banco, as váriaves devem ser separadas por virgula 
+            </q-banner>
+            <br>
+            <q-input
+              label="Digite as variaveis"
+              v-model="mult_data"
+              filled
+              type="textarea"
+            />
+          </q-form>
+        </q-card-section>
+        <q-card-section>
+          <q-card-actions align="right">
+            <q-btn
+              flat
+              label="Cancelar"
+              color="red"
+              dense
+              v-close-popup
+            ></q-btn>
+            <q-btn
+              flat
+              label="Salvar"
+              color="primary"
+              dense
+              v-close-popup
+              v-on:click="edit_mult_var()"
+            ></q-btn>
+          </q-card-actions>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- add/edit itens replcace COL -->
+    <q-dialog v-model="show_replc">
+      <q-card style="width: 600px; max-width: 60vw">
+        <q-card-section>
+          <q-btn round flat dense icon="close" class="float-right" color="grey-8" v-close-popup></q-btn>
+          <div v-if="replc_edit_row.id == 0" class="text-h6">Criar substituição</div>
+          <div v-else class="text-h6">Atualizar substituição</div>
+        </q-card-section>
+        <q-separator inset></q-separator>
+        <q-card-section class="q-pt-none">
+          <q-form class="q-gutter-md">
+            <br>
+            <q-banner inline-actions rounded class="bg-orange text-white">
+              A variável antiga deve ser digitada da mesma forma como é apresentada no banco.
+            </q-banner>
+
+            <q-list>               
+              <q-item>
+                <q-item-section>
+                  <q-item-label class="q-pb-xs">Variável antiga</q-item-label>
+                  <q-input dense outlined v-model="replc_edit_row.antigo" />
+                  
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section>
+                  <q-item-label class="q-pb-xs">Novo valor</q-item-label>
+                  <q-input dense outlined v-model="replc_edit_row.novo" />
+                </q-item-section>
+              </q-item>                         
+            </q-list>
+
+          </q-form>
+        </q-card-section>
+        <q-card-section>
+          <q-card-actions align="right">
+            <q-btn
+              flat
+              label="Cancelar"
+              color="red"
+              dense
+              v-close-popup
+            ></q-btn>
+            <q-btn
+              flat
+              label="Salvar"
+              color="primary"
+              dense
+              v-close-popup
+              v-on:click="replc_edit_bt=true"
+            ></q-btn>
+          </q-card-actions>
+        </q-card-section>
+      </q-card>
+    </q-dialog> 
+
+    <!-- add/edit itens pre-processing COL -->
+    <q-dialog v-model="show_prep">
+      <q-card style="width: 600px; max-width: 60vw">
+        <q-card-section>
+          <q-btn round flat dense icon="close" class="float-right" color="grey-8" v-close-popup></q-btn>
+          <div v-if="prep_edit_row.id == 0" class="text-h6">Criar linha</div>
+          <div v-else class="text-h6">Editar linha</div>
+        </q-card-section>
+        <q-separator inset></q-separator>
+        <q-card-section class="q-pt-none">
+          <q-form class="q-gutter-md">
+            <br>
+            <q-banner inline-actions rounded class="bg-orange text-white">
+              A função será executada no processo de importação dos dados.
+            </q-banner>
+
+            <q-list>               
+              <q-item>
+                <q-item-section>
+                  <q-item-label class="q-pb-xs">Função</q-item-label>
+                  <q-input dense outlined v-model="prep_edit_row.function" />
+                  
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section>
+                  <q-item-label class="q-pb-xs">Descrição</q-item-label>
+                  <q-input type="textarea" dense outlined v-model="prep_edit_row.definition" />
+                </q-item-section>
+              </q-item>                         
+            </q-list>
+
+          </q-form>
+        </q-card-section>
+        <q-card-section>
+          <q-card-actions align="right">
+            <q-btn
+              flat
+              label="Cancelar"
+              color="red"
+              dense
+              v-close-popup
+            ></q-btn>
+            <q-btn
+              flat
+              label="Salvar"
+              color="primary"
+              dense
+              v-close-popup
+              v-on:click="prep_edit_bt=true"
+            ></q-btn>
+          </q-card-actions>
+        </q-card-section>
+      </q-card>
+    </q-dialog> 
+
   </div>
 
 <footer class="st-footer q-pa-sm">Powered by Genie</footer>
