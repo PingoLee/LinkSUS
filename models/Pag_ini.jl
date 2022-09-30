@@ -34,7 +34,7 @@ freq_unm.unm = map(x -> string(x), freq_unm.unm)
 export Importar
 
 function cruzamentos()
-  df = DBInterface.execute(db, "select * from tipo_cruzamento") |> DataFrame
+  df = DBInterface.execute(db, "select * from opc_cruzamento") |> DataFrame
   c = String[] 
   for item in eachrow(df)   
       push!(c, item.nome)  
@@ -44,7 +44,7 @@ end
 
 # seleciona o cruzamento
 function cruzamento(crz::String)
-  df = DBInterface.execute(db, "select tb.id, b1.abrev as b1, b2.abrev as b2 from tipo_cruzamento as tb inner join bancos as b1 on b1.id = tb.b1_id inner join bancos as b2 on b2.id = tb.b2_id  where tb.nome='$crz'") |> DataFrame  
+  df = DBInterface.execute(db, "select tb.id, b1.abrev as b1, b2.abrev as b2 from opc_cruzamento as tb inner join bancos as b1 on b1.id = tb.b1_id inner join bancos as b2 on b2.id = tb.b2_id  where tb.nome='$crz'") |> DataFrame  
   return df[1, :]
 end
 

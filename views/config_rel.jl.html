@@ -1,0 +1,185 @@
+<div>
+    <q-toolbar class="bg-primary text-white">    
+      <q-avatar>
+        <img src="https://cdn.quasar.dev/logo-v2/svg/logo-mono-white.svg">
+      </q-avatar>
+
+      <q-toolbar-title>LinkSUS</q-toolbar-title>
+
+      <q-space />   
+      <q-btn-dropdown stretch flat icon="settings">
+        <q-list>
+          <q-item-label header>O que quer fazer?</q-item-label>
+          <q-item clickable v-close-popup tabindex="0" href="/">            
+            <q-item-section>
+              <q-item-label >Linkage</q-item-label>              
+            </q-item-section>
+            <q-item-section side>
+              <q-icon name="info" />
+            </q-item-section>
+          </q-item>   
+          <q-item clickable v-close-popup tabindex="0" href="/config_rel">            
+            <q-item-section>
+              <q-item-label >Conf. relatório</q-item-label>              
+            </q-item-section>
+            <q-item-section side>
+              <q-icon name="settings" />
+            </q-item-section>
+          </q-item>               
+        </q-list>
+      </q-btn-dropdown>
+
+    </q-toolbar>
+  </div>
+  
+  
+  <div class="q-pa-md">
+    <div class="row q-col-gutter-sm">
+      <div class="col-3">
+
+        <!-- Table of columns from b1 database -->
+        <q-card flat bordered class="my-card">
+          <q-card-section class="bg-primary text-white">
+            <div class="row items-center no-wrap">              
+                <div class="text-h5 text-white">BD1</div>                         
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <q-table
+              title="Variáveis BD1"
+              :data="col_b1_imp"
+              :columns="col_def"
+              row-key="id"
+              dense
+              :filter="col_b1_filter"
+              :visible-columns="vis_cols"
+            > 
+
+              <template v-slot:top-right>                
+                <q-input dense debounce="300" color="primary" v-model="col_b1_filter">
+                  <template v-slot:append>
+                    <q-icon name="search" />
+                  </template>
+                </q-input>
+              </template>
+
+              <template v-slot:body-cell-obrig="props">
+                <q-td :props="props">
+                  <q-toggle
+                    v-on:input="obrigRow(props)"
+                    :disable="true"
+                    v-model="props.row.obrig"
+                    checked-icon="check"
+                    color="green"
+                    unchecked-icon="clear"                    
+                  />    
+                </q-td>
+              </template>
+
+              <template v-slot:body-cell-actions="props">
+                <q-td :props="props">
+                  <q-btn  dense round flat color="grey" v-on:click="editRow(props)" icon="edit"></q-btn>                  
+                </q-td>          
+              </template>
+            </q-table>
+          </q-card-section>
+        </q-card>
+                    
+      </div>
+
+      <div class="col-6">
+        <q-card flat bordered class="my-card">
+          <q-card-section>
+            <div class="text-h5">Definição do relatório</div>
+          </q-card-section>
+
+          <q-card-section class="q-pt-none">
+            <div class="q-gutter-md">
+            <q-select filled v-model="selcrz" :options="list_crz" label="Cruzamento de dados" map-options emit-value
+              option-label="nome" option-value="id">
+              <template v-slot:after>
+                <q-btn dense round v-on:click="insert_new_rel()" color="primary" icon="add" />        
+              </template>
+            </q-select>              
+            
+            <q-select filled v-model="selrel" :options="list_rel" label="Relatório" map-options emit-value
+              option-label="nome" option-value="id" >                   
+              <template v-slot:after>
+                <q-btn dense round v-on:click="insert_new_rel()" color="primary" icon="edit" />        
+              </template>
+            </q-select>
+
+            <q-input
+              v-show="selrel != ''"
+              label="Descrição do relatório"
+              v-model="info_rel.obs"
+              filled
+              type="textarea"
+            />
+          </div>
+           
+          </q-card-section>
+                 
+          
+        </q-card>
+
+
+      </div>
+    </div>
+
+    <!-- add/edit itens individual COL -->
+    <q-dialog v-model="show_rel">
+      <q-card style="width: 600px; max-width: 60vw">
+        <q-card-section>
+          <q-btn round flat dense icon="close" class="float-right" color="grey-8" v-close-popup></q-btn>
+          <div v-if="info_rel.id == 0" class="text-h6">Criar relatório</div>
+          <div v-else class="text-h6">Atualizar relatório</div>
+        </q-card-section>
+        <q-separator inset></q-separator>
+        <q-card-section class="q-pt-none">
+          <q-form class="q-gutter-md">
+            
+            <q-list>               
+              <q-item>
+                <q-item-section>
+                  <q-item-label class="q-pb-xs">Nome</q-item-label>
+                  <q-input dense outlined v-model="info_rel.nome" />
+                  
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section>
+                  <q-item-label class="q-pb-xs">Descrição</q-item-label>
+                  <q-input dense outlined v-model="info_rel.obs" />
+                </q-item-section>
+              </q-item>  
+                  
+            </q-list>
+          </q-form>
+        </q-card-section>
+        <q-card-section>
+          <q-card-actions align="right">
+            <q-btn
+              flat
+              label="Cancelar"
+              color="red"
+              dense
+              v-close-popup
+            ></q-btn>
+            <q-btn
+              flat
+              label="Salvar"
+              color="primary"
+              dense
+              v-close-popup
+              v-on:click="save_rel_bt=true"
+            ></q-btn>
+          </q-card-actions>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    
+  </div>
+
+<footer class="st-footer q-pa-sm">Powered by Genie</footer>

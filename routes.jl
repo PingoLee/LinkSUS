@@ -8,6 +8,7 @@ using Stipple.ModelStorage.Sessions
 
 using LinkSUS.Pag_ini
 using LinkSUS.Pag_config
+using LinkSUS.Pag_config_rel
 
 import Genie.Renderer.Html: normal_element, register_normal_element
 register_normal_element("q__td", context = @__MODULE__)
@@ -36,4 +37,10 @@ end
 Page("/config", view = "views/config.jl.html",
           layout = "layouts/app.jl.html",
           model = () -> init_from_storage(Config, debounce = 30) |> Pag_config.handlers,
+          context = @__MODULE__)
+
+
+Page("/config_rel", view = "views/config_rel.jl.html",
+          layout = "layouts/app.jl.html",
+          model = () -> init_from_storage(Config_rel, debounce = 30) |> Pag_config_rel.handlers,
           context = @__MODULE__)

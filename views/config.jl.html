@@ -10,17 +10,22 @@
       <q-btn-dropdown stretch flat icon="settings">
         <q-list>
           <q-item-label header>O que quer fazer?</q-item-label>
-          <q-item clickable v-close-popup tabindex="0" href="/">
-            <q-item-section avatar>
-              <q-avatar icon="more_vert" color="secondary" text-color="white" />
-            </q-item-section>
+          <q-item clickable v-close-popup tabindex="0" href="/">            
             <q-item-section>
               <q-item-label >Linkage</q-item-label>              
             </q-item-section>
             <q-item-section side>
               <q-icon name="info" />
             </q-item-section>
-          </q-item>         
+          </q-item>   
+          <q-item clickable v-close-popup tabindex="0" href="/config_rel">            
+            <q-item-section>
+              <q-item-label >Conf. relatório</q-item-label>              
+            </q-item-section>
+            <q-item-section side>
+              <q-icon name="settings" />
+            </q-item-section>
+          </q-item>               
         </q-list>
       </q-btn-dropdown>
 
