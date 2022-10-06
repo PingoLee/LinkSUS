@@ -73,7 +73,7 @@ function get_rel_cols(loc)
     where tb.cruz_rel_id = $loc
   """
   local df = DBInterface.execute(db, sql) |> DataFrame  
-  println(df)
+  #println(df)
   local c = [] 
   for item in eachrow(df)   
       push!(c, Dict(pairs(NamedTuple(item))))  
@@ -120,13 +120,11 @@ end
 
   # table bd1
   col_b1_imp::R{Vector} = []; col_b1_filter::R{String} = ""
-  show_b1::R{Bool} = false; b1_row::R{Dict} = Dict(); insert_b1_bt::R{Bool} = false
-
+  
   # table bd2
   col_b2_imp::R{Vector} = []; col_b2_filter::R{String} = ""
-  show_b2::R{Bool} = false; b2_row::R{Dict} = Dict(); insert_b2_bt::R{Bool} = false
-
-  # select rel
+ 
+  # select rel (manage info about report selects)
   list_crz::R{Vector} = get_crz(); selcrz::R{Any} = ""; dict_crz::R{Dict} = Dict()
   list_rel::R{Vector} = []; selrel::R{Any} = ""; obs_rel::R{String} = ""; info_rel::R{Dict} = Dict() 
   show_rel::R{Bool} = false; insert_rel_bt::R{Bool} = false; edit_rel_bt::R{Bool} = false; save_rel_bt::R{Bool} = false
@@ -134,7 +132,7 @@ end
   # table rel
   col_cz_imp::R{Vector} = []; col_cz_def::R{Vector} = col_cz_def;  col_cz_filter::R{String} = ""; vis_cols_cz::R{Vector} = ["ordem", "var_org", "var_rel", "bd", "actions"]
   show_cz::R{Bool} = false; cz_row::R{Dict} = Dict(); insert_cz_bt::R{Bool} = false; del_cz_bt::R{Bool} = false
-  rel_edit_row::R{Dict} = Dict(); rel_bt::R{Bool} = false
+  rel_edit_row::R{Dict} = Dict(); save_row_bt::R{Bool} = false
 end
 
 # Stipple.js_mounted(::Config_rel) = watchplots()
@@ -145,9 +143,8 @@ end
 #     }
 #   """
 
-Stipple.js_methods(m::Config_rel) = raw"""  
-  
-  edit_rel(props) {   
+Stipple.js_methods(m::Config_rel) = raw"""    
+  edit_row_rel(props) {   
     if (this.selcrz == "") {
       var qsr = this.$q; 
       notif = qsr.notify({
@@ -161,7 +158,7 @@ Stipple.js_methods(m::Config_rel) = raw"""
       this.show_cz = true
     }
   },
-  del_rel(props) {   
+  del_row_rel(props) {   
     if (this.selcrz == "") {
       var qsr = this.$q; 
       notif = qsr.notify({
@@ -175,7 +172,7 @@ Stipple.js_methods(m::Config_rel) = raw"""
       this.del_cz_bt = true
     }
   },
-  insert_new_rel(props) {
+  insert_new_row_rel(props) {
     if (props.row.inrel == false){
       var qsr = this.$q; 
       notif = qsr.notify({
@@ -189,7 +186,26 @@ Stipple.js_methods(m::Config_rel) = raw"""
       this.col_edit_row = Object.assign({}, props.row);   
       this.col_bt = true;
     }
+  },
+  insert_new_rel() {
+    if (this.selcrz == ""){
+      var qsr = this.$q; 
+      notif = qsr.notify({
+        color: 'red',     
+        icon: 'announcement',
+        message: 'Escolha um cruzamento primeiro',
+        position:'top'
+      });   
+    } else {      
+      this.info_rel = {'id':0, 'nome':'', 'obs':''}
+      this.show_rel = true;
+    }
+  },
+  edit_def_rel() {
+    this.edit_rel_bt = true;
+    this.show_rel = true;
   }  
+  
   """
 
 function handlers(model::Config_rel)  
@@ -221,6 +237,14 @@ function handlers(model::Config_rel)
     
   end
 
+  onbutton(model.edit_rel_bt) do 
+    df = DBInterface.execute(db, "select * from opc_cruz_rel where id=$(model.selrel[])") |> DataFrame
+
+    if size(df, 1) > 0   
+     model.info_rel[] = Dict(pairs(NamedTuple(df[1, :])))
+    end
+  end
+
   onbutton(model.col_bt) do  
     sql = """
       select * from rel_cols where var_org_id = $(model.col_edit_row[]["id"]) and cruz_rel_id = $(model.selrel[])
@@ -247,21 +271,21 @@ function handlers(model::Config_rel)
   onbutton(model.save_rel_bt) do 
     println(model.info_rel[])
 
-    if model.info_rel[]["id"] != 0
-      sql = """update opc_cruz_rel set
-              nome = '$(model.info_rel[]["nome"])',              
-              obs = '$(model.info_rel[]["obs"])'
-            WHERE id = $(model.info_rel[]["id"]) and opc_cruz_id = $(model.selcrz[]);"""    
-    else
-      sql = """
-          INSERT INTO opc_cruz_rel 
-          (nome,obs,opc_cruz_id)
-          values
-          ('$(model.info_rel[]["nome"])', '$(model.info_rel[]["obs"])', $(model.selcrz[]))"""
-    end
+    # if model.info_rel[]["id"] != 0
+    #   sql = """update opc_cruz_rel set
+    #           nome = '$(model.info_rel[]["nome"])',              
+    #           obs = '$(model.info_rel[]["obs"])'
+    #         WHERE id = $(model.info_rel[]["id"]) and opc_cruz_id = $(model.selcrz[]);"""    
+    # else
+    #   sql = """
+    #       INSERT INTO opc_cruz_rel 
+    #       (nome,obs,opc_cruz_id)
+    #       values
+    #       ('$(model.info_rel[]["nome"])', '$(model.info_rel[]["obs"])', $(model.selcrz[]))"""
+    # end
 
-    #println(sql)
-    DBInterface.execute(db, sql)
+    # #println(sql)
+    # DBInterface.execute(db, sql)
 
     #println(model.bdsel[])
 
@@ -286,7 +310,7 @@ function handlers(model::Config_rel)
 
   end
 
-  onbutton(model.save_rel_bt) do 
+  onbutton(model.save_row_bt) do 
     local sql = """
       update rel_cols
       set var_rel = '$(model.cz_row[]["var_rel"])'
