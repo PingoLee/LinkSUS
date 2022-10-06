@@ -19,7 +19,7 @@ if Genie.Configuration.isprod()
 end
 
 # paginas de cruzamento
-Page("/", view = "views/hello.jl.html",
+Page("/", view = "views/linkage.jl.html",
           layout = "layouts/app.jl.html",
           model = () -> init_from_storage(Importar, debounce = 30) |> Pag_ini.handlers,
           context = @__MODULE__)

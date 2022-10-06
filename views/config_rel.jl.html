@@ -41,7 +41,7 @@
         <q-card flat bordered class="my-card">
           <q-card-section class="bg-primary text-white">
             <div class="row items-center no-wrap">              
-                <div class="text-h5 text-white">BD1</div>                         
+                <div class="text-h5 text-white">{{dict_crz.b1}}</div>                         
             </div>
           </q-card-section>
           <q-card-section>
@@ -63,24 +63,18 @@
                 </q-input>
               </template>
 
-              <template v-slot:body-cell-obrig="props">
+              <template v-slot:body-cell-inrel="props">
                 <q-td :props="props">
                   <q-toggle
-                    v-on:input="obrigRow(props)"
-                    :disable="true"
-                    v-model="props.row.obrig"
+                    v-on:input="insert_new_rel(props)"                  
+                    v-model="props.row.inrel"
                     checked-icon="check"
                     color="green"
                     unchecked-icon="clear"                    
                   />    
                 </q-td>
               </template>
-
-              <template v-slot:body-cell-actions="props">
-                <q-td :props="props">
-                  <q-btn  dense round flat color="grey" v-on:click="editRow(props)" icon="edit"></q-btn>                  
-                </q-td>          
-              </template>
+              
             </q-table>
           </q-card-section>
         </q-card>
@@ -88,6 +82,7 @@
       </div>
 
       <div class="col-6">
+        <!-- selection panel -->
         <q-card flat bordered class="my-card">
           <q-card-section>
             <div class="text-h5">Definição do relatório</div>
@@ -123,37 +118,124 @@
           
         </q-card>
 
+        <br>
+
+        <!-- Report setup -->
+        <q-card flat bordered class="my-card">
+
+          <q-card-section class="bg-primary text-white">
+            <div class="row items-center no-wrap">
+              <div class="col">
+                <div class="text-h5 text-white">Relatório</div>
+              </div>              
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <q-table
+              title="Definição das colunas do relatório"
+              :data="col_cz_imp"
+              :columns="col_cz_def"
+              row-key="id"
+              :filter="col_cz_filter"
+              dense
+              :visible-columns="vis_cols_cz"
+            > 
+              <template v-slot:top-right>                
+                <q-input dense debounce="300" color="primary" v-model="col_cz_filter">
+                  <template v-slot:append>
+                    <q-icon name="search" />
+                  </template>
+                </q-input>
+              </template>
+
+              <template v-slot:body-cell-actions="props">
+                <q-td :props="props">
+                  <q-btn dense round flat color="grey" v-on:click="edit_rel(props)" icon="edit"></q-btn>
+                  <q-btn dense round flat color="grey" v-on:click="del_rel(props)" icon="delete"></q-btn>
+                </q-td>          
+              </template>
+            </q-table>
+          </q-card-section>
+
+        </q-card>
 
       </div>
+
+      <div class="col-3">
+
+        <!-- Table of columns from b2 database -->
+        <q-card flat bordered class="my-card">
+          <q-card-section class="bg-primary text-white">
+            <div class="row items-center no-wrap">              
+                <div class="text-h5 text-white">{{dict_crz.b2}}</div>                         
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <q-table
+              title="Variáveis BD2"
+              :data="col_b2_imp"
+              :columns="col_def"
+              row-key="id"
+              dense
+              :filter="col_b2_filter"
+              :visible-columns="vis_cols"
+            > 
+
+              <template v-slot:top-right>                
+                <q-input dense debounce="300" color="primary" v-model="col_b2_filter">
+                  <template v-slot:append>
+                    <q-icon name="search" />
+                  </template>
+                </q-input>
+              </template>
+
+              <template v-slot:body-cell-inrel="props">
+                <q-td :props="props">
+                  <q-toggle
+                    v-on:input="insert_new_rel(props)"                  
+                    v-model="props.row.inrel"
+                    checked-icon="check"
+                    color="green"
+                    unchecked-icon="clear"                    
+                  />    
+                </q-td>
+              </template>
+              
+            </q-table>
+          </q-card-section>
+        </q-card>
+                    
+      </div>
+
     </div>
 
     <!-- add/edit itens individual COL -->
-    <q-dialog v-model="show_rel">
+    <q-dialog v-model="show_cz">
       <q-card style="width: 600px; max-width: 60vw">
         <q-card-section>
-          <q-btn round flat dense icon="close" class="float-right" color="grey-8" v-close-popup></q-btn>
-          <div v-if="info_rel.id == 0" class="text-h6">Criar relatório</div>
-          <div v-else class="text-h6">Atualizar relatório</div>
+          <q-btn round flat dense icon="close" class="float-right" color="grey-8" v-close-popup></q-btn>       
+          <div class="text-h6">Editar</div>
         </q-card-section>
         <q-separator inset></q-separator>
         <q-card-section class="q-pt-none">
-          <q-form class="q-gutter-md">
+          <br>
+          <q-form class="q-gutter-md">            
+            <q-item>
+              <q-item-section>
+                <q-item-label class="q-pb-xs">Váriavel original</q-item-label>
+                <q-input disable dense outlined v-model="cz_row.var_org" />
+                
+              </q-item-section>
+            </q-item>
             
             <q-list>               
               <q-item>
                 <q-item-section>
-                  <q-item-label class="q-pb-xs">Nome</q-item-label>
-                  <q-input dense outlined v-model="info_rel.nome" />
+                  <q-item-label class="q-pb-xs">Váriavel no relatório</q-item-label>
+                  <q-input dense outlined v-model="cz_row.var_rel" />
                   
                 </q-item-section>
-              </q-item>
-              <q-item>
-                <q-item-section>
-                  <q-item-label class="q-pb-xs">Descrição</q-item-label>
-                  <q-input dense outlined v-model="info_rel.obs" />
-                </q-item-section>
-              </q-item>  
-                  
+              </q-item>                                
             </q-list>
           </q-form>
         </q-card-section>

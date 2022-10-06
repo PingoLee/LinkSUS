@@ -16,35 +16,40 @@ export Config_rel
 const col_def = [
   Dict("name" => "id", "label" => "id", "align" => "left", "field" => "id"), 
   Dict("name" => "ordem", "label" => "Ordem", "align" => "left", "field" => "ordem"),  
-  Dict( "name" => "col", "label" => "Variável", "field" => "col", "align" => "left"),
-  Dict( "name" => "obrig", "label" => "Obrig", "field" => "obrig", "align" => "center"),
-  Dict( "name" => "actions", "label" => "Ação", "field" => "", "align" =>"center")
+  Dict( "name" => "col", "label" => "Variável", "field" => "col", "align" => "left"), 
+  Dict( "name" => "inrel", "label" => "Inserir", "field" => "inrel", "align" =>"center")
 ]
 
-const col_replc_def = [
+const col_cz_def = [
   Dict("name" => "id", "label" => "id", "align" => "left", "field" => "id"), 
-  Dict("name" => "antigo", "label" => "Tx. orig.", "align" => "left", "field" => "antigo", "sortable" => true),  
-  Dict("name" => "novo", "label" => "Tx. novo", "field" => "novo", "align" => "left", "sortable" => true),
+  Dict("name" => "ordem", "label" => "Ordem", "align" => "left", "field" => "ordem"),  
+  Dict("name" => "var_org_id", "label" => "var_org_id", "align" => "left", "field" => "var_org_id"), 
+  Dict("name" => "var_org", "label" => "Origem", "align" => "left", "field" => "var_org"), 
+  Dict("name" => "var_rel", "label" => "Relatório", "align" => "left", "field" => "var_rel"),  
+  Dict("name" => "bd", "label" => "Banco", "align" => "left", "field" => "bd"),
   Dict("name" => "actions", "label" => "Ação", "field" => "", "align" =>"center")
 ]
 
-const col_prep_def = [
-  Dict("name" => "id", "label" => "id", "align" => "left", "field" => "id"), 
-  Dict("name" => "ordem", "label" => "Ordem", "align" => "left", "field" => "ordem"), 
-  Dict("name" => "function", "label" => "Função", "align" => "left", "field" => "function"),  
-  Dict("name" => "definition", "label" => "Definição", "field" => "definition", "align" => "left"),
-  Dict("name" => "actions", "label" => "Ação", "field" => "", "align" =>"center")
-]
-
-
-
-function get_bd(loc)
+# colect sql informations
+function get_bd(loc,cruz)
   local sql = """
-    select id, col, obrig, ordem
-    from 
+    SELECT
+      tb.id,
+      tb.banco_id,
+      tb.col,
+      tb.ordem,
+      rel_cols.id as inrel
+
+    FROM banco_cols as tb
+      left join rel_cols on rel_cols.var_org_id = tb.id and rel_cols.cruz_rel_id = $(cruz)
+      
+    WHERE tb.banco_id = $(loc)
+
+    order by tb.ordem
   """
-  local df = DBInterface.execute(db, "select * from banco_cols where banco_id=$loc") |> DataFrame
-  df.obrig = map(x -> x == 1, df.obrig)
+  local df = DBInterface.execute(db, sql) |> DataFrame
+  df.inrel = map(x -> ~ismissing(x), df.inrel)
+  #println(df)
   local c = [] 
   for item in eachrow(df)   
       push!(c, Dict(pairs(NamedTuple(item))))  
@@ -52,18 +57,23 @@ function get_bd(loc)
   return c
 end
 
-function get_crz(loc)
-  local df = DBInterface.execute(db, "select * from opc_cruz_rel where opc_cruz_id=$loc") |> DataFrame
-  df.obrig = map(x -> x == 1, df.obrig)
-  local c = [] 
-  for item in eachrow(df)   
-      push!(c, Dict(pairs(NamedTuple(item))))  
-  end  
-  return c
-end
+function get_rel_cols(loc)
+  sql = """
+    select
+      tb.id,
+      tb.ordem,
+      tb.var_org_id,
+      banco_cols.col as var_org,
+      tb.var_rel,
+      bancos.nome as bd
 
-function get_replc(loc)
-  local df = DBInterface.execute(db, "select * from banco_subs where banco_id=$loc") |> DataFrame  
+    from rel_cols as tb
+      left join banco_cols on banco_cols.id = tb.var_org_id
+      left join bancos on bancos.id = tb.banco_id
+    where tb.cruz_rel_id = $loc
+  """
+  local df = DBInterface.execute(db, sql) |> DataFrame  
+  println(df)
   local c = [] 
   for item in eachrow(df)   
       push!(c, Dict(pairs(NamedTuple(item))))  
@@ -80,7 +90,6 @@ function get_rel(loc)
   return c
 end
 
-
 function get_crz()
   local df1 = DBInterface.execute(db, "select * from opc_cruzamento") |> DataFrame
   local c = [] 
@@ -90,22 +99,45 @@ function get_crz()
   return c
 end
 
+function get_crz_dict(loc)
+  local sql = """
+    select 
+      tb.*,
+      b1.nome as b1,
+      b2.nome as b2
+     from opc_cruzamento as tb 
+      left join bancos as b1 on b1.id = tb.b1_id
+      left join bancos as b2 on b2.id = tb.b2_id
+     where tb.id=$loc"""
+  local df = DBInterface.execute(db, sql) |> DataFrame  
+  return Dict(pairs(NamedTuple(df[1, :])))
+end
+
 @reactive mutable struct Config_rel <: ReactiveModel
   # comoun
-  col_def::R{Vector} = col_def; vis_cols::R{Vector} = ["ordem", "col", "obrig", "actions"]
-  
+  col_def::R{Vector} = col_def; col_edit_row::R{Dict} = Dict(); vis_cols::R{Vector} = ["ordem", "col", "obrig", "inrel"]
+  col_bt::R{Bool} = false
+
   # table bd1
-  col_b1_imp::R{Vector} = [];  col_b1_filter::R{String} = ""
+  col_b1_imp::R{Vector} = []; col_b1_filter::R{String} = ""
   show_b1::R{Bool} = false; b1_row::R{Dict} = Dict(); insert_b1_bt::R{Bool} = false
+
+  # table bd2
+  col_b2_imp::R{Vector} = []; col_b2_filter::R{String} = ""
+  show_b2::R{Bool} = false; b2_row::R{Dict} = Dict(); insert_b2_bt::R{Bool} = false
 
   # select rel
   list_crz::R{Vector} = get_crz(); selcrz::R{Any} = ""; dict_crz::R{Dict} = Dict()
   list_rel::R{Vector} = []; selrel::R{Any} = ""; obs_rel::R{String} = ""; info_rel::R{Dict} = Dict() 
   show_rel::R{Bool} = false; insert_rel_bt::R{Bool} = false; edit_rel_bt::R{Bool} = false; save_rel_bt::R{Bool} = false
- 
+  
+  # table rel
+  col_cz_imp::R{Vector} = []; col_cz_def::R{Vector} = col_cz_def;  col_cz_filter::R{String} = ""; vis_cols_cz::R{Vector} = ["ordem", "var_org", "var_rel", "bd", "actions"]
+  show_cz::R{Bool} = false; cz_row::R{Dict} = Dict(); insert_cz_bt::R{Bool} = false; del_cz_bt::R{Bool} = false
+  rel_edit_row::R{Dict} = Dict(); rel_bt::R{Bool} = false
 end
 
-#Stipple.js_mounted(::Config_rel) = watchplots()
+# Stipple.js_mounted(::Config_rel) = watchplots()
 
 # Stipple.js_watch(app::Config_rel) = raw"""
 #     cruzamento: function (val, oldval) {#       
@@ -114,21 +146,8 @@ end
 #   """
 
 Stipple.js_methods(m::Config_rel) = raw"""  
-  insert_new_rel() {   
-    if (this.selcrz == "") {
-      var qsr = this.$q; 
-      notif = qsr.notify({
-        color: 'red',     
-        icon: 'announcement',
-        message: 'Escolha um cruzamento primeiro',
-        position:'top'
-      });
-    } else {
-      this.info_rel = {'id':0, 'nome':'', 'obs':''}
-      this.show_rel = true;
-    }
-  },
-  edit_rel() {   
+  
+  edit_rel(props) {   
     if (this.selcrz == "") {
       var qsr = this.$q; 
       notif = qsr.notify({
@@ -138,7 +157,37 @@ Stipple.js_methods(m::Config_rel) = raw"""
         position:'top'
       });
     } else {
-      this.edit_rel_bt = true
+      this.cz_row = Object.assign({}, props.row); 
+      this.show_cz = true
+    }
+  },
+  del_rel(props) {   
+    if (this.selcrz == "") {
+      var qsr = this.$q; 
+      notif = qsr.notify({
+        color: 'red',     
+        icon: 'announcement',
+        message: 'Escolha um relatório primeiro',
+        position:'top'
+      });
+    } else {
+      this.cz_row = Object.assign({}, props.row); 
+      this.del_cz_bt = true
+    }
+  },
+  insert_new_rel(props) {
+    if (props.row.inrel == false){
+      var qsr = this.$q; 
+      notif = qsr.notify({
+        color: 'warning',     
+        icon: 'warning',
+        message: 'Para excluir a variável, clique no botão excluir na tabela a baixo',
+        position:'center'
+      }); 
+      props.row.inrel = true
+    } else {      
+      this.col_edit_row = Object.assign({}, props.row);   
+      this.col_bt = true;
     }
   }  
   """
@@ -146,18 +195,52 @@ Stipple.js_methods(m::Config_rel) = raw"""
 function handlers(model::Config_rel)  
   on(model.selcrz) do selcrz
     model.list_rel[] = get_rel(selcrz) 
-    model.dict_crz
+    model.dict_crz[] = get_crz_dict(selcrz)
     size(model.list_rel[], 1) == 0 ? model.selrel[] = "" :  model.selrel[] = 1
   end
 
-  onbutton(model.edit_rel_bt) do 
-    df = DBInterface.execute(db, "select id, nome, obs from opc_cruz_rel where id=$(model.selrel[])") |> DataFrame
+  on(model.selrel) do selrel  
+    if selrel != ""
+      df = DBInterface.execute(db, "select id, nome, obs from opc_cruz_rel where id=$(selrel)") |> DataFrame
+
+      if size(df, 1) > 0    
+        ismissing(df[1, :obs]) ? model.obs_rel[] = "" : model.obs_rel[] = df[1, :obs]    
+  
+        model.col_b1_imp[] = get_bd(model.dict_crz[][:b1_id], model.selcrz[])
+        model.col_b2_imp[] = get_bd(model.dict_crz[][:b2_id], model.selcrz[])
+
+        model.col_cz_imp[] = get_rel_cols(selrel)  
+      end
+
+    else
+      model.obs_rel[] = ""
+      model.col_b1_imp[] = []
+      model.col_b2_imp[] = []
+      model.col_cz_imp[] = []
+    end  
     
-    model.obs_rel[] = df[1, :obd]
+  end
 
+  onbutton(model.col_bt) do  
+    sql = """
+      select * from rel_cols where var_org_id = $(model.col_edit_row[]["id"]) and cruz_rel_id = $(model.selrel[])
+    """
+    local df = DBInterface.execute(db, sql) |> DataFrame
 
+    if size(df, 1) == 0 
+    
+      ordem = size(model.col_cz_imp[], 1) + 1
+      sql = """
+            INSERT INTO rel_cols 
+            (ordem,var_org_id,var_rel,banco_id,cruz_rel_id)
+            values
+            ($ordem,'$(model.col_edit_row[]["id"])', null, '$(model.col_edit_row[]["banco_id"])', $(model.selrel[]))
+      """   
+      DBInterface.execute(db, sql) 
+    
+    end
 
-    model.col_b1_imp[] = get_bd(model.)
+    model.col_cz_imp[] = get_rel_cols(model.selrel[])
 
   end
 
@@ -184,6 +267,36 @@ function handlers(model::Config_rel)
 
     model.list_rel[] = get_rel(model.selcrz[])
     
+  end
+
+  onbutton(model.del_cz_bt) do 
+    local sql = """
+      delete
+      from rel_cols
+      where id = $(model.cz_row[]["id"])"""
+
+    #println(sql)
+    DBInterface.execute(db, sql)
+
+    #println(model.bdsel[])
+
+    model.col_b1_imp[] = get_bd(model.dict_crz[][:b1_id], model.selcrz[])
+    model.col_b2_imp[] = get_bd(model.dict_crz[][:b2_id], model.selcrz[])
+    model.col_cz_imp[] = get_rel_cols(model.selrel[]) 
+
+  end
+
+  onbutton(model.save_rel_bt) do 
+    local sql = """
+      update rel_cols
+      set var_rel = '$(model.cz_row[]["var_rel"])'
+      where id = $(model.cz_row[]["id"])"""
+
+    #println(sql)
+    DBInterface.execute(db, sql)
+    
+    model.col_cz_imp[] = get_rel_cols(model.selrel[]) 
+
   end
 
   model
