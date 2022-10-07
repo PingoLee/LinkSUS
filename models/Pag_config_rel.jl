@@ -268,28 +268,29 @@ function handlers(model::Config_rel)
 
   end
 
+  # update select boxes
   onbutton(model.save_rel_bt) do 
     println(model.info_rel[])
 
-    # if model.info_rel[]["id"] != 0
-    #   sql = """update opc_cruz_rel set
-    #           nome = '$(model.info_rel[]["nome"])',              
-    #           obs = '$(model.info_rel[]["obs"])'
-    #         WHERE id = $(model.info_rel[]["id"]) and opc_cruz_id = $(model.selcrz[]);"""    
-    # else
-    #   sql = """
-    #       INSERT INTO opc_cruz_rel 
-    #       (nome,obs,opc_cruz_id)
-    #       values
-    #       ('$(model.info_rel[]["nome"])', '$(model.info_rel[]["obs"])', $(model.selcrz[]))"""
-    # end
+    if model.info_rel[]["id"] != 0
+      sql = """update opc_cruz_rel set
+              nome = '$(model.info_rel[]["nome"])',              
+              obs = '$(model.info_rel[]["obs"])'
+            WHERE id = $(model.info_rel[]["id"]) and opc_cruz_id = $(model.selcrz[]);"""    
+    else
+      sql = """
+          INSERT INTO opc_cruz_rel 
+          (nome,obs,opc_cruz_id)
+          values
+          ('$(model.info_rel[]["nome"])', '$(model.info_rel[]["obs"])', $(model.selcrz[]))"""
+    end
 
-    # #println(sql)
-    # DBInterface.execute(db, sql)
-
-    #println(model.bdsel[])
+    #println(sql)
+    DBInterface.execute(db, sql)
 
     model.list_rel[] = get_rel(model.selcrz[])
+    model.obs_rel[] = model.info_rel[]["obs"]
+      
     
   end
 
