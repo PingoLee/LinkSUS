@@ -5,12 +5,25 @@ using Unicode
 using StipplePlotly
 using Genie.Renderer.Json
 using SQLite, DataFrames, CSV
+import Genie.Assets.add_fileroute
 
 db = SQLite.DB(joinpath("data", "linksus.db"))
 
 @mixin(@__MODULE__)
 
 export Config_rel
+
+
+add_fileroute(StippleUI.assets_config, "Sortable.min.js", basedir = pwd())
+add_fileroute(StippleUI.assets_config, "vuedraggable.umd.min.js", basedir = pwd())
+add_fileroute(StippleUI.assets_config, "vuedraggable.umd.min.js.map", type = "js", basedir = pwd())
+
+draggabletree_deps() = [
+    script(src = "https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js")
+    script(src = """https://cdnjs.cloudflare.com/ajax/libs/Vue.Draggable/2.24.3/vuedraggable.umd.js""")
+]
+
+Stipple.DEPS[:vuedraggable] = draggabletree_deps
 
 # tables columns
 const col_def = [
@@ -31,7 +44,7 @@ const col_cz_def = [
 ]
 
 # colect sql informations
-function get_bd(loc,cruz)
+function get_bd(loc,rel)
   local sql = """
     SELECT
       tb.id,
@@ -41,7 +54,7 @@ function get_bd(loc,cruz)
       rel_cols.id as inrel
 
     FROM banco_cols as tb
-      left join rel_cols on rel_cols.var_org_id = tb.id and rel_cols.cruz_rel_id = $(cruz)
+      left join rel_cols on rel_cols.var_org_id = tb.id and rel_cols.cruz_rel_id = $(rel)
       
     WHERE tb.banco_id = $(loc)
 
@@ -71,6 +84,7 @@ function get_rel_cols(loc)
       left join banco_cols on banco_cols.id = tb.var_org_id
       left join bancos on bancos.id = tb.banco_id
     where tb.cruz_rel_id = $loc
+    order by tb.ordem
   """
   local df = DBInterface.execute(db, sql) |> DataFrame  
   #println(df)
@@ -132,7 +146,7 @@ end
   # table rel
   col_cz_imp::R{Vector} = []; col_cz_def::R{Vector} = col_cz_def;  col_cz_filter::R{String} = ""; vis_cols_cz::R{Vector} = ["ordem", "var_org", "var_rel", "bd", "actions"]
   show_cz::R{Bool} = false; cz_row::R{Dict} = Dict(); insert_cz_bt::R{Bool} = false; del_cz_bt::R{Bool} = false
-  rel_edit_row::R{Dict} = Dict(); save_row_bt::R{Bool} = false
+  rel_edit_row::R{Dict} = Dict(); save_row_bt::R{Bool} = false; up_row_bt::R{Bool} = false; down_row_bt::R{Bool} = false
 end
 
 # Stipple.js_mounted(::Config_rel) = watchplots()
@@ -154,8 +168,36 @@ Stipple.js_methods(m::Config_rel) = raw"""
         position:'top'
       });
     } else {
-      this.cz_row = Object.assign({}, props.row); 
+      this.cz_row = Object.assign({}, props.row);     
       this.show_cz = true
+    }
+  },
+  up_row_rel(props) {   
+    if (this.selcrz == "") {
+      var qsr = this.$q; 
+      notif = qsr.notify({
+        color: 'red',     
+        icon: 'announcement',
+        message: 'Escolha um relatório primeiro',
+        position:'top'
+      });
+    } else {
+      this.cz_row = Object.assign({}, props.row); 
+      this.up_row_bt = true
+    }
+  },
+  down_row_rel(props) {   
+    if (this.selcrz == "") {
+      var qsr = this.$q; 
+      notif = qsr.notify({
+        color: 'red',     
+        icon: 'announcement',
+        message: 'Escolha um relatório primeiro',
+        position:'top'
+      });
+    } else {
+      this.cz_row = Object.assign({}, props.row); 
+      this.down_row_bt = true
     }
   },
   del_row_rel(props) {   
@@ -215,15 +257,15 @@ function handlers(model::Config_rel)
     size(model.list_rel[], 1) == 0 ? model.selrel[] = "" :  model.selrel[] = 1
   end
 
-  on(model.selrel) do selrel  
+  on(model.selrel) do selrel      
     if selrel != ""
       df = DBInterface.execute(db, "select id, nome, obs from opc_cruz_rel where id=$(selrel)") |> DataFrame
-
+      println(df)
       if size(df, 1) > 0    
         ismissing(df[1, :obs]) ? model.obs_rel[] = "" : model.obs_rel[] = df[1, :obs]    
   
-        model.col_b1_imp[] = get_bd(model.dict_crz[][:b1_id], model.selcrz[])
-        model.col_b2_imp[] = get_bd(model.dict_crz[][:b2_id], model.selcrz[])
+        model.col_b1_imp[] = get_bd(model.dict_crz[][:b1_id], model.selrel[])
+        model.col_b2_imp[] = get_bd(model.dict_crz[][:b2_id], model.selrel[])
 
         model.col_cz_imp[] = get_rel_cols(selrel)  
       end
@@ -268,7 +310,7 @@ function handlers(model::Config_rel)
 
   end
 
-  # update select boxes
+  # update select report
   onbutton(model.save_rel_bt) do 
     println(model.info_rel[])
 
@@ -288,6 +330,8 @@ function handlers(model::Config_rel)
     #println(sql)
     DBInterface.execute(db, sql)
 
+    model.col_b1_imp[] = get_bd(model.dict_crz[][:b1_id], model.selrel[])
+    model.col_b2_imp[] = get_bd(model.dict_crz[][:b2_id], model.selrel[])
     model.list_rel[] = get_rel(model.selcrz[])
     model.obs_rel[] = model.info_rel[]["obs"]
       
@@ -305,13 +349,13 @@ function handlers(model::Config_rel)
 
     #println(model.bdsel[])
 
-    model.col_b1_imp[] = get_bd(model.dict_crz[][:b1_id], model.selcrz[])
-    model.col_b2_imp[] = get_bd(model.dict_crz[][:b2_id], model.selcrz[])
+    model.col_b1_imp[] = get_bd(model.dict_crz[][:b1_id], model.selrel[])
+    model.col_b2_imp[] = get_bd(model.dict_crz[][:b2_id], model.selrel[])
     model.col_cz_imp[] = get_rel_cols(model.selrel[]) 
 
   end
 
-  onbutton(model.save_row_bt) do 
+  onbutton(model.save_row_bt) do   
     local sql = """
       update rel_cols
       set var_rel = '$(model.cz_row[]["var_rel"])'
@@ -321,6 +365,52 @@ function handlers(model::Config_rel)
     DBInterface.execute(db, sql)
     
     model.col_cz_imp[] = get_rel_cols(model.selrel[]) 
+
+  end
+
+  onbutton(model.up_row_bt) do 
+    ordem = model.cz_row[]["ordem"]    
+    if ordem > 1
+      for item in model.col_cz_imp[]
+        if item[:ordem] == ordem
+          local sql = """
+            update rel_cols
+            set ordem = $(item[:ordem] - 1)
+            where id = $(item[:id])"""
+          DBInterface.execute(db, sql)
+        elseif item[:ordem] == (ordem - 1)
+          local sql = """
+            update rel_cols
+            set ordem = $(item[:ordem] + 1)
+            where id = $(item[:id])"""
+          DBInterface.execute(db, sql)      
+        end
+      end
+      model.col_cz_imp[] = get_rel_cols(model.selrel[])
+    end
+  end
+
+  onbutton(model.down_row_bt) do 
+    ordem = model.cz_row[]["ordem"]
+    
+    if ordem < size(model.col_cz_imp[], 1)
+      for item in model.col_cz_imp[]
+        if item[:ordem] == ordem
+          local sql = """
+            update rel_cols
+            set ordem = $(item[:ordem] + 1)
+            where id = $(item[:id])"""
+          DBInterface.execute(db, sql)
+        elseif item[:ordem] == (ordem + 1)
+          local sql = """
+            update rel_cols
+            set ordem = $(item[:ordem] - 1)
+            where id = $(item[:id])"""
+          DBInterface.execute(db, sql)      
+        end
+      end
+      model.col_cz_imp[] = get_rel_cols(model.selrel[])
+    end
 
   end
 

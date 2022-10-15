@@ -105,6 +105,7 @@
             </q-select>
 
             <q-input
+              disable
               v-show="selrel != ''"
               label="Descrição do relatório"
               v-model="obs_rel"
@@ -150,8 +151,10 @@
 
               <template v-slot:body-cell-actions="props">
                 <q-td :props="props">
+                  <q-btn dense round flat color="grey" v-on:click="up_row_rel(props)" icon="arrow_upward"></q-btn>
                   <q-btn dense round flat color="grey" v-on:click="edit_row_rel(props)" icon="edit"></q-btn>
                   <q-btn dense round flat color="grey" v-on:click="del_row_rel(props)" icon="delete"></q-btn>
+                  <q-btn dense round flat color="grey" v-on:click="down_row_rel(props)" icon="arrow_downward "></q-btn>
                 </q-td>          
               </template>
             </q-table>
@@ -209,7 +212,7 @@
 
     </div>
 
-    <!-- add/edit itens individual COL -->
+    <!-- edit row (individual COL) -->
     <q-dialog v-model="show_cz">
       <q-card style="width: 600px; max-width: 60vw">
         <q-card-section>
@@ -254,7 +257,7 @@
               color="primary"
               dense
               v-close-popup
-              v-on:click="save_rel_bt=true"
+              v-on:click="save_row_bt=true"
             ></q-btn>
           </q-card-actions>
         </q-card-section>
@@ -267,7 +270,7 @@
         <q-card-section>
           <q-btn round flat dense icon="close" class="float-right" color="grey-8" v-close-popup></q-btn>       
           <div v-if="info_rel.id == 0" class="text-h6">Criar novo relatório</div>
-          <div class="text-h6">Editar relatório</div>
+          <div v-else class="text-h6">Editar relatório</div>
         </q-card-section>
         <q-separator inset></q-separator>
         <q-card-section class="q-pt-none">
@@ -275,7 +278,7 @@
           <q-form class="q-gutter-md">            
             <q-item>
               <q-item-section>
-                <q-item-label class="q-pb-xs">Váriavel original</q-item-label>
+                <q-item-label class="q-pb-xs">Nome do relatório</q-item-label>
                 <q-input dense outlined v-model="info_rel.nome" />
                 
               </q-item-section>
@@ -284,7 +287,7 @@
             <q-list>               
               <q-item>
                 <q-item-section>
-                  <q-item-label class="q-pb-xs">Váriavel no relatório</q-item-label>
+                  <q-item-label class="q-pb-xs">Descrição do relatório</q-item-label>
                   <q-input dense outlined v-model="info_rel.obs" type="textarea" />              
                 </q-item-section>
               </q-item>                                
