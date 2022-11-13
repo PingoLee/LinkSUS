@@ -24,7 +24,7 @@ function get_sql_bancos_defs(db::SQLite.DB, crz::String)
     df1 = DBInterface.execute(db, 
         """select 
                 tb.nome, bd.*
-            from tipo_cruzamento as tb 
+            from opc_cruzamento as tb 
                 inner join bancos as bd on bd.id = tb.b1_id 
 
             where tb.nome='$crz'""") |> DataFrame 
@@ -32,7 +32,7 @@ function get_sql_bancos_defs(db::SQLite.DB, crz::String)
     df2 = DBInterface.execute(db, 
         """select 
                 tb.nome, bd.*
-            from tipo_cruzamento as tb 
+            from opc_cruzamento as tb 
                 inner join bancos as bd on bd.id = tb.b2_id 
 
             where tb.nome='$crz'""") |> DataFrame 
@@ -120,8 +120,8 @@ function format_dt_string(df1::DataFrame, col::String)
 end
   
 
-# formatação de bancos
-export formata_vr_covid
+# preprocessamento # formatação de bancos
+export formata_vr_covid, formata_zcd
 
 function formata_vr_covid(df::DataFrame)
     if "Coronavírus SARS-CoV2" in names(df)
@@ -129,5 +129,49 @@ function formata_vr_covid(df::DataFrame)
         rename!(df, Dict(["Coronavírus SARS-CoV2" => "Resultado"]))
     end
 end
+
+"Formata o banco caso ele seja do ZDC"
+function formata_zcd(df::DataFrame)
+    
+    # colunas que detectão se o banco é zcd
+    Col_chec = ["Requisição", "Dengue", "Zika", "Chikungunya"]
+   
+    Colunas = ["Requisição", "Paciente", "Nome da Mãe", "Data de Nascimento", "Data da Coleta", "Sexo", "IBGE Município de Residência", 
+    "Endereço", "Exame", "Data de Cadastro", "Data do Recebimento", "Status Exame", "Data da Liberação", 
+    "Observações do Resultado"]
+    
+    if issubset(Col_chec, names(df)) == false
+
+    elseif issubset(Colunas, names(df)) == false
+      for item in Colunas
+        if issubset([item], names(df)) 
+          println(item * "- Ok")
+        else
+          println(item * "- Erro")
+        end
+      end
+      return "O gal foi baixado incorretamente", "Erro, não processado"
+    else      
+        df1= copy(df)
+        select!(df, Not(["Valor CT",	"Zika", "Chikungunya"]))
+        rename!(df, Dict("Dengue" => "Resultado"))
+        df.Exame = map(x -> "Dengue, Biologia Molecular", df.Exame)
+
+        df2 = copy(df1)
+        select!(df2, Not(["Valor CT",	"Dengue", "Chikungunya"]))
+        rename!(df2, Dict("Zika" => "Resultado"))
+        df2.Exame = map(x -> "Zika, Biologia Molecular", df2.Exame)
+        append!(df, df2)
+        
+        df2 = copy(df1)
+        select!(df2, Not(["Valor CT",	"Zika", "Dengue"]))
+        rename!(df2, Dict("Chikungunya" => "Resultado"))
+        df2.Exame = map(x -> "Chikungunya, Biologia Molecular", df2.Exame)
+        append!(df, df2)
+              
+    end
+   
+    
+end 
 
 end

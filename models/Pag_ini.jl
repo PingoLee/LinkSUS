@@ -212,7 +212,9 @@ function handlers(model::Importar)
   onbutton(model.limpar_tudo_bt) do 
     DBInterface.execute(db, "DELETE FROM b1_proc")
     DBInterface.execute(db, "DELETE FROM b2_proc")
-   
+    DBInterface.execute(db, "DELETE FROM list_cruz")
+    DBInterface.execute(db, "DELETE FROM list_cruz_rv")
+       
   end
 
   onany(model.row_rev, model.max_rev) do row_rev, max_rev
@@ -425,9 +427,11 @@ function valida_bancos(db::SQLite.DB, df1::DataFrame, b1::DataFrameRow, resp::Di
 
     # faz a checagem dos campos a serem substituídos  
     for item in eachrow(prep)
+      println(item)
       getfield(importadores, Symbol(item.function))(df1)
     end
-   
+    
+    show(df1)
 
     # faz a checagem dos campos a serem substituídos
     for item in eachrow(subs_b1)
@@ -825,22 +829,36 @@ function blocagem()
     end
   end
   
-  # validação das regras
-  open("C://Users//rafa//Desktop//Teste//cruz.csv", "w") do io
-    CSV.write(io, df, delim=";")
-  end  
+  # # validação das regras
+  # open("C://Users//rafa//Desktop//Teste//cruz.csv", "w") do io
+  #   CSV.write(io, df, delim=";")
+  # end  
 
   filter!([:regra] => x -> first(x, 1) != "S", df)
   insertcols!(df, 2, :par_rev => "-")
 
   df.id = axes(df, 1)
 
+  # carrega todos os dados
   DBInterface.execute(db, "DELETE FROM list_cruz")
   SQLite.load!(df, db, "list_cruz")
-  
-  size(df, 1) > 0 ? resp["modo_rev"] = true : resp["modo_rev"] = false
+
+  # carrega o que vai ser revisado
+  dfr = DataFrames.select(df, [:id, :regra, :par_rev])
+  DataFrames.rename!(dfr, Dict([:id => :list_id]))
+ 
+
+  println(axes(dfr,1))
+
+  filter!([:regra] => x -> contains(x, "N"), dfr) # filtra só as linhas que devem ser revisadas
+  insertcols!(dfr, 1, :id => axes(dfr,1))
+
+  DBInterface.execute(db, "DELETE FROM list_cruz_rv")
+  SQLite.load!(dfr, db, "list_cruz_rv")
+        
+  size(dfr, 1) > 0 ? resp["modo_rev"] = true : resp["modo_rev"] = false
   resp["row_rev"] = 1
-  resp["max_rev"] = size(df, 1)
+  resp["max_rev"] = size(dfr, 1)
   resp["cor"] = "positive"
   resp["msg"] = "Cruzamento concluído com sucesso" 
   return Json.json(resp)  
@@ -888,13 +906,14 @@ end
 function revisa_row(row)
   sql = """
     select
-      tb.nome1, tb.nome2, tb.nm_m1, tb.nm_m2, tb.dn1, tb.dn2, tb.escore, tb.escore_prob, tb.sexo1, tb.sexo2, tb.dt_flag, tb.pn, tb.un, tb.sn, tb.pnm, tb.unm, tb.par_rev, tb.distdn, tb.dt_flag,
+      tb.nome1, tb.nome2, tb.nm_m1, tb.nm_m2, tb.dn1, tb.dn2, tb.escore, tb.escore_prob, tb.sexo1, tb.sexo2, tb.dt_flag, tb.pn, tb.un, tb.sn, tb.pnm, tb.unm, tb0.par_rev, tb.distdn, tb.dt_flag,
       b1_proc.cod as cod1, b1_proc.dr as dr1, b1_proc.ibge as ibge1, b1_proc.end as end1, 
-      b2_proc.cod as cod2, b1_proc.dr as dr2, b1_proc.ibge as ibge2, b2_proc.end as end2 
-    from list_cruz tb
+      b2_proc.cod as cod2, b2_proc.dr as dr2, b2_proc.ibge as ibge2, b2_proc.end as end2 
+    from list_cruz_rv tb0
+      left join list_cruz tb on tb.id = tb0.list_id
       inner join b1_proc on b1_proc."index" = tb.id1
       inner join b2_proc on b2_proc."index" = tb.id2
-    where id = $row;
+    where tb0.id = $row;
   """
   df = DBInterface.execute(db, sql) |> DataFrame
 
@@ -907,7 +926,7 @@ end
 "Define se os registros são pares"
 function revisa_row_par(row::Int64, par::String)
   sql = """
-    UPDATE list_cruz
+    UPDATE list_cruz_rv
     SET par_rev = '$par'
     WHERE id = $row;
   """
