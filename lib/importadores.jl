@@ -24,18 +24,18 @@ function get_sql_bancos_defs(db::SQLite.DB, crz::String)
     df1 = DBInterface.execute(db, 
         """select 
                 tb.nome, bd.*
-            from tipo_cruzamento as tb 
+            from opc_cruzamento as tb 
                 inner join bancos as bd on bd.id = tb.b1_id 
 
-            where tb.nome='$crz'""") |> DataFrame 
+            where tb.id='$crz'""") |> DataFrame 
 
     df2 = DBInterface.execute(db, 
         """select 
                 tb.nome, bd.*
-            from tipo_cruzamento as tb 
+            from opc_cruzamento as tb 
                 inner join bancos as bd on bd.id = tb.b2_id 
 
-            where tb.nome='$crz'""") |> DataFrame 
+            where tb.id='$crz'""") |> DataFrame 
 
     insertcols!(df1, 1, :file => "file1_id")
     insertcols!(df2, 1, :file => "file2_id")

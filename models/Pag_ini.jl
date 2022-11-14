@@ -33,36 +33,89 @@ freq_unm.unm = map(x -> string(x), freq_unm.unm)
 
 export Importar
 
+# get info 
 function cruzamentos()
   df = DBInterface.execute(db, "select * from opc_cruzamento") |> DataFrame
-  c = String[] 
+  local c = [] 
   for item in eachrow(df)   
-      push!(c, item.nome)  
+      push!(c, Dict(pairs(NamedTuple(item))))  
   end  
   return c
+
 end
 
-# seleciona o cruzamento
-function cruzamento(crz::String)
-  df = DBInterface.execute(db, "select tb.id, b1.abrev as b1, b2.abrev as b2 from opc_cruzamento as tb inner join bancos as b1 on b1.id = tb.b1_id inner join bancos as b2 on b2.id = tb.b2_id  where tb.nome='$crz'") |> DataFrame  
+function cruzamento(crz)
+  df = DBInterface.execute(db, "select tb.id, b1.abrev as b1, b2.abrev as b2 from opc_cruzamento as tb inner join bancos as b1 on b1.id = tb.b1_id inner join bancos as b2 on b2.id = tb.b2_id  where tb.id='$crz'") |> DataFrame  
   return df[1, :]
 end
 
-@reactive mutable struct Importar <: ReactiveModel
-  # Botões
-  limpar_tudo_bt::R{Bool} = false; limpar_crz_bt::R{Bool} = false;
-
-  # modelo
-  cruzamentos::Vector{<:String} = cruzamentos()
-  cruzamento::R{String} = ""; cruzar::R{Int} = 0
-  client_file1 = missing;  client_file2 = missing
-  labelb1::R{String} = "Escolha o tipo de cruzamento"; labelb2::R{String} = "Escolha o tipo de cruzamento" ; textb1::R{String} = "Aguarde"; textb2::R{String} = "Aguarde"
-  importado::R{Bool} = false ; cruzado::R{Bool} = false 
-  # variaveis da revisão
-  modo_rev::R{Bool} = false; form_rev::R{Dict} = Dict(); row_rev::R{Int} = 0; max_rev::R{Int} = 0; cor_rev::R{Dict} = Dict() ; par_rev::R{String} = "-"; rev_unlock::R{Bool} = false
+function insert_st_crz_dict(loc)
+  local sql = """
+  INSERT INTO st_cruz (id)
+  VALUES ($loc);"""
+  DBInterface.execute(db, sql)    
 end
 
-Stipple.js_mounted(::Importar) = watchplots()
+function get_st_crz_dict(loc)
+  local sql = """
+    select 
+      tb.*,
+      crz.*
+     from st_cruz as tb 
+      left join opc_cruzamento as crz on crz.id = tb.crz_id
+      
+     where tb.id=$loc"""
+  local df = DBInterface.execute(db, sql) |> DataFrame  
+  if size(df, 1) == 0
+    return Dict()
+  else
+    return Dict(pairs(NamedTuple(df[1, :])))
+  end
+end
+
+function get_st_crz(loc)
+  bd = get_st_crz_dict(loc)
+  if bd == Dict()
+    insert_st_crz_dict(loc)
+    bd = get_st_crz_dict(loc) 
+  end
+  return bd
+end
+
+function set_st_import_bd(nu::String)
+  if length.(nu) > 15
+    return nu
+  else
+    return "Foram importados " * nu * "  registros"
+  end  
+end
+
+bd = get_st_crz(1)
+println(bd)
+println(typeof(bd))
+
+
+@reactive mutable struct Importar <: ReactiveModel
+  # Botões
+  limpar_tudo_bt::R{Bool} = false; limpar_crz_bt::R{Bool} = false
+
+  # modelo
+  cruzamentos::R{Vector} = cruzamentos()
+  cruzamento::R{Any} = bd[:crz_id]; cruzar::R{Int} = 0
+  client_file1 = missing;  client_file2 = missing
+  labelb1::R{String} = "Escolha o tipo de cruzamento"; labelb2::R{String} = "Escolha o tipo de cruzamento" 
+  textb1::R{String} = set_st_import_bd(bd[:b1_n]); textb2::R{String} = set_st_import_bd(bd[:b2_n])
+  importado::R{Bool} = bd[:importado] ; cruzado::R{Bool} = false 
+
+  # variaveis da revisão
+  modo_rev::R{Bool} = false; form_rev::R{Dict} = Dict(); row_rev::R{Int} = 0; max_rev::R{Int} = 0
+  cor_rev::R{Dict} = Dict() ; par_rev::R{String} = "-"; rev_unlock::R{Bool} = false
+
+end
+
+# Stipple.js_mounted(::Importar) = raw"""
+# this.mounted_bt = true
+# """
 
 Stipple.js_watch(app::Importar) = raw"""
     cruzamento: function (val, oldval) {
@@ -195,8 +248,9 @@ Stipple.js_methods(m::Importar) = raw"""
   """
 
 function handlers(model::Importar)  
-  on(model.cruzamento) do data   
-    loc = cruzamento(data)
+
+  on(model.cruzamento) do crz   
+    loc = cruzamento(crz)
     model.labelb1[] = "Escolha o banco de dados: " * loc.b1
     model.labelb2[] = "Escolha o banco de dados: " * loc.b2
   end 
@@ -205,14 +259,13 @@ function handlers(model::Importar)
     #print(rev_unlock)
     if rev_unlock      
       revisa_row_par(model.row_rev[], par_rev)   
-    end
-   
+    end   
   end
 
   onbutton(model.limpar_tudo_bt) do 
     DBInterface.execute(db, "DELETE FROM b1_proc")
-    DBInterface.execute(db, "DELETE FROM b2_proc")
-   
+    DBInterface.execute(db, "DELETE FROM b2_proc")   
+    DBInterface.execute(db, "DELETE FROM st_cruz where id = 1")  
   end
 
   onany(model.row_rev, model.max_rev) do row_rev, max_rev
@@ -254,6 +307,8 @@ function receb_arquivos()
   csv_save = Dict("file1_id" => "b1", "file2_id" => "b2")
   files = Genie.Requests.filespayload()
   post = Genie.Requests.postpayload()  
+
+  #println(post[:cruzamento])
     
   b1, b2 = get_sql_bancos_defs(db, post[:cruzamento])
 
@@ -272,7 +327,8 @@ function receb_arquivos()
   
   formata_proc_bd(db, df1, csv_save, b1)
 
-  textb1 = "Foram importados $(size(df1,1) -1) registros"
+  b1_n = size(df1,1)
+  textb1 = "Foram importados $(size(df1,1)) registros"
 
   
   # checa e importa o banco 2
@@ -301,13 +357,22 @@ function receb_arquivos()
 
   #show(df1)
 
+  b2_n = size(df1,1)
   textb2 = "Foram importados $(size(df1,1)) registros"
 
   
   #impor_arquivos(post[:cruzamento], FILE_PATH)
 
-  #md = Base.invokelatest(Importar) # conseguindo coletar o modelo
- 
+  md = Base.invokelatest(Importar) # conseguindo coletar o modelo
+
+  # grava os dados do banco
+  sql = """
+  UPDATE st_cruz as tb
+  SET b1_n = '$b1_n', b2_n = '$b2_n', crz_id= $(post[:cruzamento]), importado = 1
+  WHERE tb.id = 1; """
+  #println(sql)
+  DBInterface.execute(db, sql)   
+  
   resp["cor"] = "positive"
   resp["msg"] = "Concluído com sucesso" 
   resp["textb1"] = textb1
@@ -466,38 +531,19 @@ function valida_bancos(db::SQLite.DB, df1::DataFrame, b1::DataFrameRow, resp::Di
 end
 
 # Cruzamento
-function blocagem()
+function linkage_det()
   inicio = now()
   resp = Dict()
   local limar_sms = 170 #CRIAR CONFIGURAÇÃO
   local limiar_nome = 71
+  md = Base.invokelatest(Importar)
 
-  # Blocagem
-  sql = """
-    SELECT
-      b1."index" as id1,
-      b2."index" as id2,
-      b1.nome as nome1,
-      b2.nome as nome2,
-      b1.nome_mae as nm_m1,
-      b2.nome_mae as nm_m2,
-      b1.dn as dn1,
-      b2.dn as dn2
-          
-    from b1_proc as b1
-      inner join b2_proc as b2 on b2.dn = b1.dn or 
-      (b2.sxpn = b1.sxpn and b2.sxun = b1.sxun and b2.sxpnm = b1.sxpnm and not b2.sxpnm is null) or
-      (b2.sxpn = b1.sxpn and b2.sxsn = b1.sxsn and b2.sexo = b1.sexo) or
-      (b2.sxun = b1.sxun and strftime('%Y',b2.dn) = strftime('%Y',b1.dn))
+  df = println(md.cruzamento[])
+  global bd = get_st_crz(1)
 
-    where
-      not b1."index" is null and not b2."index" is null
-      
-    order by id1, id2
-    """
-    
-  df = DBInterface.execute(db, sql) |> DataFrame
-  insertcols!(df, 1, :id => axes(df,1))
+  block_sql_mult(10, bd[:b1_n]) 
+
+  #insertcols!(df, 1, :id => axes(df,1))
 
   #  #println(filter([:id2] => x -> x == 10329, df))
   println(Dates.format(convert(DateTime, now() - inicio), "MM:SS"))
@@ -519,8 +565,7 @@ function blocagem()
   
   # tipo da abreviação e crianças
   insertcols!(df, :escore, :difday => 0, after=true)
-  insertcols!(df, :escore, :abrev => "", after=true)
-  
+  insertcols!(df, :escore, :abrev => "", after=true)  
   for row in eachrow(df)
     if first(row.nome1, 2) == "RN" || first(row.nome2, 2) == "RN" 
       first(row.nome1, 2) == "RN" && first(row.nome2, 2) == "RN" ? row.abrev = "RN2" : row.abrev = "RN1" 
@@ -826,9 +871,9 @@ function blocagem()
   end
   
   # validação das regras
-  open("C://Users//rafa//Desktop//Teste//cruz.csv", "w") do io
-    CSV.write(io, df, delim=";")
-  end  
+  # open("C://Users//rafa//Desktop//Teste//cruz.csv", "w") do io
+  #   CSV.write(io, df, delim=";")
+  # end  
 
   filter!([:regra] => x -> first(x, 1) != "S", df)
   insertcols!(df, 2, :par_rev => "-")
