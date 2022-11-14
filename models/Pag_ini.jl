@@ -91,8 +91,8 @@ function set_st_import_bd(nu::String)
 end
 
 bd = get_st_crz(1)
-println(bd)
-println(typeof(bd))
+#println(bd)
+#println(typeof(bd))
 
 
 @reactive mutable struct Importar <: ReactiveModel
@@ -108,7 +108,7 @@ println(typeof(bd))
   importado::R{Bool} = bd[:importado] ; cruzado::R{Bool} = false 
 
   # variaveis da revisão
-  modo_rev::R{Bool} = false; form_rev::R{Dict} = Dict(); row_rev::R{Int} = 0; max_rev::R{Int} = 0
+  modo_rev::R{Bool} = bd[:modo_rev]; form_rev::R{Dict} = Dict(); row_rev::R{Int} = 0; max_rev::R{Int} = bd[:max_rev]
   cor_rev::R{Dict} = Dict() ; par_rev::R{String} = "-"; rev_unlock::R{Bool} = false
 
 end
@@ -267,7 +267,7 @@ function handlers(model::Importar)
     DBInterface.execute(db, "DELETE FROM b2_proc")   
     DBInterface.execute(db, "DELETE FROM list_cruz")
     DBInterface.execute(db, "DELETE FROM list_cruz_rv")
-        DBInterface.execute(db, "DELETE FROM st_cruz where id = 1")  
+    DBInterface.execute(db, "DELETE FROM st_cruz where id = 1")  
   end
 
   onany(model.row_rev, model.max_rev) do row_rev, max_rev
@@ -305,13 +305,13 @@ end
 
 # routs
 function receb_arquivos()
+  global bd = get_st_crz(1)
   resp = Dict()
   csv_save = Dict("file1_id" => "b1", "file2_id" => "b2")
   files = Genie.Requests.filespayload()
   post = Genie.Requests.postpayload()  
 
-  #println(post[:cruzamento])
-    
+  #println(post[:cruzamento])    
   b1, b2 = get_sql_bancos_defs(db, post[:cruzamento])
 
   # checa e importa o banco 1
@@ -361,7 +361,6 @@ function receb_arquivos()
 
   b2_n = size(df1,1)
   textb2 = "Foram importados $(size(df1,1)) registros"
-
   
   #impor_arquivos(post[:cruzamento], FILE_PATH)
 
@@ -541,11 +540,11 @@ function linkage_det()
   local limar_sms = 170 #CRIAR CONFIGURAÇÃO
   local limiar_nome = 71
   md = Base.invokelatest(Importar)
-
-  df = println(md.cruzamento[])
+  println(md.cruzamento[])
   global bd = get_st_crz(1)
 
-  block_sql_mult(10, bd[:b1_n]) 
+  df = block_sql_mult(10, bd[:b1_n]) 
+  insertcols!(df, 1, :id => axes(df,1))
 
   #insertcols!(df, 1, :id => axes(df,1))
 
@@ -897,11 +896,27 @@ function linkage_det()
   DBInterface.execute(db, "DELETE FROM list_cruz_rv")
   SQLite.load!(dfr, db, "list_cruz_rv")
         
-  size(dfr, 1) > 0 ? resp["modo_rev"] = true : resp["modo_rev"] = false
+  if size(dfr, 1) > 0 
+    resp["modo_rev"] = true 
+    revisado = 0
+  else
+    resp["modo_rev"] = false
+    revisado = 1
+  end
+
   resp["row_rev"] = 1
   resp["max_rev"] = size(dfr, 1)
   resp["cor"] = "positive"
   resp["msg"] = "Cruzamento concluído com sucesso" 
+
+  # grava os dados do banco
+  sql = """
+  UPDATE st_cruz as tb
+  SET modo_rev = $(resp["modo_rev"]), max_rev = $(resp["max_rev"]), linkado = 1, revisado=$revisado
+  WHERE tb.id = 1; """
+  #println(sql)
+  DBInterface.execute(db, sql)   
+
   return Json.json(resp)  
  
 end
