@@ -890,11 +890,7 @@ function linkage_det()
 
   # carrega o que vai ser revisado
   dfr = DataFrames.select(df, [:id, :regra, :par_rev])
-  DataFrames.rename!(dfr, Dict([:id => :list_id]))
- 
-
-  println(axes(dfr,1))
-
+  DataFrames.rename!(dfr, Dict([:id => :list_id])) 
   filter!([:regra] => x -> contains(x, "N"), dfr) # filtra só as linhas que devem ser revisadas
   insertcols!(dfr, 1, :id => axes(dfr,1))
 
