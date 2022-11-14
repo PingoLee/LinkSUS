@@ -101,9 +101,21 @@
   <q-card flat bordered class="my-card">
     <q-card-section>
       <div class="text-h6">Revise os casos duvidosos</div>
-      <q-badge color="secondary">
-        Revisando: {{row_rev}} de {{max_rev}}
-      </q-badge>
+      <div class="row">
+        <q-badge color="secondary">
+          Revisando: {{row_rev}} de {{max_rev}}
+        </q-badge>
+        <div v-if="par_rev == '-'">
+          <q-badge color="grey">
+            Falta analisar
+          </q-badge>
+        </div>
+        <div v-else>
+          <q-badge :color="par_rev == 'S' ? 'green' : 'red'">
+            {{par_rev == 'S' ? 'Confirmado' : 'Rejeitado'}}
+          </q-badge>
+        </div>
+      </div>
     </q-card-section>
 
     <q-card-section>     
