@@ -29,7 +29,7 @@ route("/sub", method = POST) do
 end
 
 route("/cruzar", method = GET) do  
-  return Pag_ini.blocagem()
+  return Pag_ini.linkage_det()
 end
 
 

@@ -69,8 +69,9 @@
             </q-card-section>
         
             <q-card-section class="q-pt-none">
-                <div class="col col-12">                     
-                    <q-select :disable="importado" :options="cruzamentos" label="Escolha quais bancos cruzar" v-model="cruzamento" name="cruzamento"></q-select>                
+                <div class="col col-12"> 
+                  <q-select :disable="importado" filled v-model="cruzamento" :options="cruzamentos" label="Escolha quais bancos cruzar" map-options emit-value
+                  name="cruzamento" option-label="nome" option-value="id" />  
                 </div>    
                 <div class="q-pa-md q-gutter-sm">         
                     <q-btn :disable="importado" color="primary" label="Importar bancos" type="submit"/>

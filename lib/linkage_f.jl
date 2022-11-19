@@ -580,7 +580,8 @@ end
 
 
 # Blocagem
-function block_sql(n::Int64, tam::Int64)  
+export block_sql_mult, block_sql_sing
+function block_sql_mult(n::Int64, tam::Int64)  
     local results = Channel(32);
     local steps = convert(Int64, round(tam/n)) + 1
     agora = now()      
@@ -646,6 +647,38 @@ function block_sql(n::Int64, tam::Int64)
     println("Levou " * string(Dates.format(convert(DateTime, now() - agora), "MM:SS")))
 
     return dff
+end
+function block_sql_mult(n::Int64, tam::String)  
+    block_sql_mult(n, parse(Int64, tam))
+end
+
+function block_sql_sing()
+    # Blocagem
+  sql = """
+  SELECT
+    b1."index" as id1,
+    b2."index" as id2,
+    b1.nome as nome1,
+    b2.nome as nome2,
+    b1.nome_mae as nm_m1,
+    b2.nome_mae as nm_m2,
+    b1.dn as dn1,
+    b2.dn as dn2
+        
+  from b1_proc as b1
+    inner join b2_proc as b2 on b2.dn = b1.dn or 
+    (b2.sxpn = b1.sxpn and b2.sxun = b1.sxun and b2.sxpnm = b1.sxpnm and not b2.sxpnm is null) or
+    (b2.sxpn = b1.sxpn and b2.sxsn = b1.sxsn and b2.sexo = b1.sexo) or
+    (b2.sxun = b1.sxun and strftime('%Y',b2.dn) = strftime('%Y',b1.dn))
+
+  where
+    not b1."index" is null and not b2."index" is null
+    
+  order by id1, id2
+  """
+
+return DBInterface.execute(db, sql) |> DataFrame
+
 end
 
 #include("lib/linkage_f.jl")
