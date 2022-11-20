@@ -131,8 +131,7 @@ function formata_vr_covid(df::DataFrame)
 end
 
 "Formata o banco caso ele seja do ZDC"
-function formata_zcd(df::DataFrame)
-    
+function formata_zcd(df::DataFrame)    
     # colunas que detectão se o banco é zcd
     Col_chec = ["Requisição", "Dengue", "Zika", "Chikungunya"]
    
@@ -141,7 +140,7 @@ function formata_zcd(df::DataFrame)
     "Observações do Resultado"]
     
     if issubset(Col_chec, names(df)) == false
-
+        println("Saiu ")
     elseif issubset(Colunas, names(df)) == false
       for item in Colunas
         if issubset([item], names(df)) 
@@ -169,9 +168,28 @@ function formata_zcd(df::DataFrame)
         df2.Exame = map(x -> "Chikungunya, Biologia Molecular", df2.Exame)
         append!(df, df2)
               
+        show(df)
     end
    
     
 end 
+
+
+# Relatórios
+# Funções de carregamento
+export carregar_csv
+
+"Carrega os csv para gerar os relatórios"
+function carregar_csv(bd::String)
+  file = joinpath("data", "linksus", "importado", bd * ".csv")
+  return DataFrame(CSV.File(open(read, file)))
+end
+
+export gerar_relatorio
+
+"gera o relatorio"
+function gerar_relatorio()
+
+end
 
 end

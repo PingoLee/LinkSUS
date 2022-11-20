@@ -36,33 +36,33 @@
 <q-form class="row q-gutter-xs" method="POST" action="/sub" v-on:submit='onSubmit' v-on:reset='onReset'>
 
     <div class="col">
-        <q-card v-show="importado == false" flat bordered class="my-card">
-            <q-card-section>
-              <div class="text-h6">Importar bancos</div>
-            </q-card-section>
-      
-            <q-card-section class="q-pt-none">
-                <q-file :disable="importado" field-name="File1" v-model="client_file1" rounded="" outlined="" name="file1_id" :label="labelb1"></q-file>
-                <br>
-                <q-file :disable="importado" field-name="File2" v-model="client_file2"  rounded="" outlined="" name="file2_id" :label="labelb2"></q-file>
-            </q-card-section>      
-        </q-card>
+      <q-card v-show="importado == false" flat bordered class="my-card">
+        <q-card-section>
+          <div class="text-h6">Importar bancos</div>
+        </q-card-section>
+  
+        <q-card-section class="q-pt-none">
+          <q-file :disable="importado" field-name="File1" v-model="client_file1" rounded="" outlined="" name="file1_id" :label="labelb1"></q-file>
+          <br>
+          <q-file :disable="importado" field-name="File2" v-model="client_file2"  rounded="" outlined="" name="file2_id" :label="labelb2"></q-file>
+        </q-card-section>      
+      </q-card>
 
-        <q-card v-show="importado" flat bordered class="my-card">
-          <q-card-section>
-            <div class="text-h6">Bancos importados</div>
-          </q-card-section>
-            
-          <q-card-section class="q-pt-none">
-            <q-input disable v-model="textb1" :label="labelb1"/>
-            <br>
-            <q-input disable v-model="textb2" :label="labelb2"/>
-          </q-card-section>      
+      <q-card v-show="importado" flat bordered class="my-card">
+        <q-card-section>
+          <div class="text-h6">Bancos importados</div>
+        </q-card-section>
+          
+        <q-card-section class="q-pt-none">
+          <q-input disable v-model="textb1" :label="labelb1"/>
+          <br>
+          <q-input disable v-model="textb2" :label="labelb2"/>
+        </q-card-section>      
       </q-card>
                    
     </div>
 
-    <div class="col col-3">        
+    <div class="col col-4">        
         <q-card flat bordered class="my-card">
             <q-card-section>
                 <div class="text-h6">Selecione qual cruzamento realizar</div>
@@ -87,11 +87,19 @@
           <div class="text-h6">Efetue o cruzamento de dados</div>
         </q-card-section>
     
-        <q-card-section class="q-pt-none">              
-          <div class="q-pa-md q-gutter-sm">         
+        <q-card-section class="q-pt-none"> 
+       
+            <q-btn-group rounded spread>            
+              <!-- <q-btn color="amber" rounded glossy icon="visibility" />
+              <q-btn color="amber" rounded glossy icon-right="update" label="Update" /> -->
+              <q-btn :disable="cruzado" v-on:click='onCruzar' class="full-width" color="primary" icon="find_in_page" :loading="isprocessing" :readonly="isprocessing"/>
+              <q-btn color="red"  class="full-width" icon="delete_forever" :loading="isprocessing" :readonly="isprocessing" />    
+            </q-btn-group>   
+             
+          <!-- <div class="q-pa-md q-gutter-sm">         
             <q-btn :disable="cruzado" v-on:click='onCruzar' class="full-width" color="primary" label="Cruzar bancos de dados" :loading="isprocessing" :readonly="isprocessing"/>
             <q-btn color="primary"  class="full-width" label="Limpar cruzamento" :loading="isprocessing" :readonly="isprocessing" />    
-          </div>      
+          </div>       -->
         </q-card-section>      
       </q-card>  
     </div>
@@ -224,6 +232,19 @@
      
     </q-card-section>
   </q-card>  
+</div>
+
+<div v-show="rel_modo" class="q-pa-md">
+  <q-card flat bordered class="my-card">
+    <q-card-section>
+      <div class="text-h6">Relatório</div>
+    </q-card-section>
+      
+    <q-card-section class="q-pt-none">
+      <q-input disable v-model="textrel" label="Dados do cruzamento"/>
+      
+    </q-card-section>      
+  </q-card>
 </div>
 
 <footer class="st-footer q-pa-sm">Powered by Genie</footer>

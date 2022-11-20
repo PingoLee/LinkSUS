@@ -82,17 +82,21 @@ function get_st_crz(loc)
   return bd
 end
 
-function set_st_import_bd(nu::String)
-  if length.(nu) > 15
-    return nu
+function set_st_import_bd(nu::Union{Missing,String};tipo="importar")
+  if ismissing(nu) || length.(nu) > 15
+    return ""
   else
-    return "Foram importados " * nu * "  registros"
+    if tipo == "importar"
+      return "Foram importados " * nu * "  registros"
+    else
+      return "Foram relacionados " * nu * "  registros"
+    end
   end  
 end
 
 bd = get_st_crz(1)
-#println(bd)
-#println(typeof(bd))
+# println(bd)
+# println(typeof(bd))
 
 
 @reactive mutable struct Importar <: ReactiveModel
@@ -110,6 +114,11 @@ bd = get_st_crz(1)
   # variaveis da revisão
   modo_rev::R{Bool} = bd[:modo_rev]; form_rev::R{Dict} = Dict(); row_rev::R{Int} = 0; max_rev::R{Int} = bd[:max_rev]
   cor_rev::R{Dict} = Dict() ; par_rev::R{String} = "-"; rev_unlock::R{Bool} = false
+
+  # variaveis relatório
+  rel_modo::R{Bool} = bd[:rel_modo]; rel_avan::R{Bool} = false; rel_avan_op::R{Vector} = []
+  rel_bt_pad::R{Bool} = false; rel_bt_avan::R{Bool} = false
+  textrel::R{String} = set_st_import_bd(bd[:rel_n]; tipo="rel")
 
 end
 
@@ -290,6 +299,10 @@ function handlers(model::Importar)
       model.cor_rev[] = cor_rev    
       #println(model.cor_rev[])
     end
+  end
+
+  onbutton(model.rel_bt_pad) do
+    gerar_relatorio()
   end
   model
 end
@@ -488,15 +501,14 @@ function valida_bancos(db::SQLite.DB, df1::DataFrame, b1::DataFrameRow, resp::Di
     col_b1 = get_sql_bancos_cols(db, b1.id) 
     subs_b1 = get_sql_bancos_subs(db, b1.id)
     prep = get_sql_bancos_prep(db, b1.id)
-
+    
     # faz a checagem dos campos a serem substituídos  
     for item in eachrow(prep)
+      println("Tem função")
       println(item)
       getfield(importadores, Symbol(item.function))(df1)
     end
-    
-    show(df1)
-
+   
     # faz a checagem dos campos a serem substituídos
     for item in eachrow(subs_b1)
       if item.antigo in names(df1)
@@ -991,4 +1003,12 @@ function revisa_row_par(row::Int64, par::String)
 
 end
 
+function gerar_relatorio()  
+  df1 = carregar_csv("b1")
+  df2 = carregar_csv("b2")
+
+  show(df1)
+
 end
+
+end # fim do modulo
