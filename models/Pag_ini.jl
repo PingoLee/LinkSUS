@@ -95,8 +95,8 @@ function set_st_import_bd(nu::Union{Missing,String};tipo="importar")
 end
 
 bd = get_st_crz(1)
-# println(bd)
-# println(typeof(bd))
+println(bd)
+#println(set_st_import_bd(bd[:rel_n]; tipo="rel"))
 
 
 @reactive mutable struct Importar <: ReactiveModel
@@ -104,7 +104,7 @@ bd = get_st_crz(1)
   limpar_tudo_bt::R{Bool} = false; limpar_crz_bt::R{Bool} = false
 
   # modelo
-  cruzamentos::R{Vector} = cruzamentos()
+  cruzamentos::R{Vector} = cruzamentos(); linkado::R{Bool} = bd[:linkado]
   cruzamento::R{Any} = bd[:crz_id]; cruzar::R{Int} = 0
   client_file1 = missing;  client_file2 = missing
   labelb1::R{String} = "Escolha o tipo de cruzamento"; labelb2::R{String} = "Escolha o tipo de cruzamento" 
@@ -116,7 +116,7 @@ bd = get_st_crz(1)
   cor_rev::R{Dict} = Dict() ; par_rev::R{String} = "-"; rev_unlock::R{Bool} = false
 
   # variaveis relatório
-  rel_modo::R{Bool} = bd[:rel_modo]; rel_avan::R{Bool} = false; rel_avan_op::R{Vector} = []
+  rel_avan::R{Bool} = false; rel_avan_op::R{Vector} = []
   rel_bt_pad::R{Bool} = false; rel_bt_avan::R{Bool} = false
   textrel::R{String} = set_st_import_bd(bd[:rel_n]; tipo="rel")
 
@@ -223,10 +223,13 @@ Stipple.js_methods(m::Importar) = raw"""
 
     axios.get('/cruzar'       
       ).then(function(resp){  
-        //alert(resp.data.max_rev)
+        //alert(resp.data.max_rev);
         modelo.row_rev = 1;
         modelo.max_rev = resp.data.max_rev;
         modelo.modo_rev = resp.data.modo_rev;
+        modelo.linkado = 1;
+        modelo.textrel = resp.data.textrel;
+        modelo.revisado = resp.data.revisado;        
         notif({
           type: resp.data.cor,   
           message: resp.data.msg      
@@ -302,7 +305,10 @@ function handlers(model::Importar)
   end
 
   onbutton(model.rel_bt_pad) do
-    gerar_relatorio()
+    model.isprocessing[] = 1    
+    gerar_relatorio(1,2)
+
+    model.isprocessing[] = 0
   end
   model
 end
@@ -912,10 +918,13 @@ function linkage_det()
     resp["modo_rev"] = true 
     revisado = 0
   else
-    resp["modo_rev"] = false
+    resp["modo_rev"] = false  
     revisado = 1
   end
 
+  rel_n = string(size(df, 1))
+  resp["textrel"] = set_st_import_bd(rel_n; tipo="rel")  
+  resp["revisado"] = revisado
   resp["row_rev"] = 1
   resp["max_rev"] = size(dfr, 1)
   resp["cor"] = "positive"
@@ -924,7 +933,7 @@ function linkage_det()
   # grava os dados do banco
   sql = """
   UPDATE st_cruz as tb
-  SET modo_rev = $(resp["modo_rev"]), max_rev = $(resp["max_rev"]), linkado = 1, revisado=$revisado
+  SET modo_rev = $(resp["modo_rev"]), max_rev = $(resp["max_rev"]), linkado = 1, revisado=$revisado, rel_n= '$rel_n'
   WHERE tb.id = 1; """
   #println(sql)
   DBInterface.execute(db, sql)   
@@ -1003,11 +1012,51 @@ function revisa_row_par(row::Int64, par::String)
 
 end
 
-function gerar_relatorio()  
-  df1 = carregar_csv("b1")
-  df2 = carregar_csv("b2")
+"Constrói o df com o relatório"
+function gerar_relatorio(b1_id, b2_id)  
+  sql = """
+    select
+      tb.ordem,
+      bd.col,
+      tb.banco_id,
+      tb.var_rel
 
-  show(df1)
+    from rel_cols tb
+      left join banco_cols as bd on bd.id = tb.var_org_id
+     
+    where tb.cruz_rel_id = 1
+
+    order by tb.ordem
+  """
+  df_cols = DBInterface.execute(db, sql) |> DataFrame
+
+  sql = """
+    select
+      id1, id2
+    from list_cruz
+    """
+  rel = DBInterface.execute(db, sql) |> DataFrame
+  
+  df1 = carregar_csv("b1")
+  cols = ["index"] ; append!(cols, filter([:banco_id] => x -> x == bd[:b1_id], df_cols).col)
+  leftjoin!(rel, DataFrames.select(df1, cols), on= :id1 => :index)
+  subs = Dict{String,String}()
+  for row in eachrow(filter([:banco_id] => x -> x == bd[:b1_id], df_cols))
+    row.col != row.var_rel && (subs[row.col] = row.var_rel)
+  end
+  println(subs)
+  DataFrames.rename!(rel, subs)
+
+  df1 = carregar_csv("b2")
+  cols = ["index"] ; append!(cols, filter([:banco_id] => x -> x == bd[:b2_id], df_cols).col)
+  leftjoin!(rel, DataFrames.select(df1, cols), on= :id1 => :index)
+  subs = Dict{String,String}()
+  for row in eachrow(filter([:banco_id] => x -> x == bd[:b2_id], df_cols))
+    subs[row.col] = row.var_rel
+  end
+  rename!(rel, subs)
+  
+  show(DataFrames.select(rel,df_cols.var_rel))
 
 end
 
