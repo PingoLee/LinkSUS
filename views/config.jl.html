@@ -84,7 +84,7 @@
               <template v-slot:body-cell-actions="props">
                 <q-td :props="props">
                   <q-btn  dense round flat color="grey" v-on:click="editRow(props)" icon="edit"></q-btn>
-                  <q-btn :disable="props.row.ordem < 9" dense round flat color="grey" v-on:click="deleteRow(props)" icon="delete"></q-btn>
+                  <q-btn :disable="props.row.ordem < 9" dense round flat color="grey" v-on:click="del_col(props)" icon="delete"></q-btn>
                 </q-td>          
               </template>
             </q-table>

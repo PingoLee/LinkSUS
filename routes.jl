@@ -35,12 +35,12 @@ end
 
 # CONFIGURAÇÃO
 Page("/config", view = "views/config.jl.html",
-          layout = "layouts/app.jl.html",
-          model = () -> init_from_storage(Config, debounce = 30) |> Pag_config.handlers,
-          context = @__MODULE__)
+  layout = "layouts/app.jl.html",
+  model = () -> init_from_storage(Config, debounce = 30) |> Pag_config.handlers,
+  context = @__MODULE__)
 
 
 Page("/config_rel", view = "views/config_rel.jl.html",
-          layout = "layouts/app.jl.html",
-          model = () -> init_from_storage(Config_rel, debounce = 30) |> Pag_config_rel.handlers,
-          context = @__MODULE__)
+  layout = "layouts/app.jl.html",
+  model = () -> init_from_storage(Config_rel, debounce = 30) |> Pag_config_rel.handlers,
+  context = @__MODULE__)

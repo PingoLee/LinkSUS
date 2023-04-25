@@ -9,7 +9,7 @@ import Genie.Assets.add_fileroute
 
 db = SQLite.DB(joinpath("data", "linksus.db"))
 
-@mixin(@__MODULE__)
+# @mixin(@__MODULE__)
 
 export Config_rel
 
@@ -127,7 +127,7 @@ function get_crz_dict(loc)
   return Dict(pairs(NamedTuple(df[1, :])))
 end
 
-@reactive mutable struct Config_rel <: ReactiveModel
+@old_reactive! mutable struct Config_rel <: ReactiveModel
   # comoun
   col_def::R{Vector} = col_def; col_edit_row::R{Dict} = Dict(); vis_cols::R{Vector} = ["ordem", "col", "obrig", "inrel"]
   col_bt::R{Bool} = false

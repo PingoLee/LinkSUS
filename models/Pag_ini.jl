@@ -29,7 +29,7 @@ freq_unm.unm = map(x -> string(x), freq_unm.unm)
 # db = SQLite.DB("C://Users//rafa//.julia//geniebuilder//apps//LinkSUS//data//linksus.db") 
 #using DataFrames
 
-@mixin(@__MODULE__)
+# @mixin(@__MODULE__)
 
 export Importar
 
@@ -99,7 +99,7 @@ println(bd)
 #println(set_st_import_bd(bd[:rel_n]; tipo="rel"))
 
 
-@reactive mutable struct Importar <: ReactiveModel
+@old_reactive! mutable struct Importar <: ReactiveModel
   # Botões
   limpar_tudo_bt::R{Bool} = false; limpar_crz_bt::R{Bool} = false
 
@@ -340,6 +340,7 @@ function receb_arquivos()
     resp["msg"] = "O formato do banco de cados " * b1.abrev * " está erradado, o arquivo deve estar no formato " * b1.formato 
     return Json.json(resp)    
   end
+  
   write(joinpath("data", "linksus", "bruto", string(b1.file, splitext(f.name)[2])), f.data)
   df1 = getfield(importadores, Symbol(b1.function))(joinpath("data", "linksus", "bruto", string(b1.file, splitext(f.name)[2]))) # Importa a base de dados como df  
 

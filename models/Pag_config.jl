@@ -8,7 +8,7 @@ using SQLite, DataFrames, CSV
 
 db = SQLite.DB(joinpath("data", "linksus.db"))
 
-@mixin(@__MODULE__)
+# @mixin(@__MODULE__)
 
 export Config
 
@@ -90,7 +90,7 @@ function get_bds()
   return c
 end
 
-@reactive mutable struct Config <: ReactiveModel
+@old_reactive! mutable struct Config <: ReactiveModel
   # tabela colunas
   col_imp::R{Vector} = []; col_def::R{Vector} = col_def; col_filter::R{String} = ""; vis_cols::R{Vector} = ["ordem", "col", "function", "obrig", "actions"]
   col_obr::Dict = col_obr; show_dialog::R{Bool} = false; edit_row::R{Dict} = Dict(); edit_bt::R{Bool} = false; del_bt::R{Bool} = false; obrig_bt::R{Bool} = false
@@ -142,6 +142,10 @@ Stipple.js_methods(m::Config) = raw"""
       this.edit_row = {"id": 0, "ordem":this.col_imp.length + 1, "col":"", "function":"", 'obrig':true};
       this.show_dialog = true;
     }    
+  },
+  del_col(props) {     
+    this.edit_row = Object.assign({}, props.row);   
+    this.del_bt = true;
   },
   add_mult_var() {
     if (this.bdsel == null){
@@ -272,6 +276,21 @@ function handlers(model::Config)
 
     #println(model.bdsel[])
 
+    model.col_imp[] = get_cols(model.bdsel[])
+    
+  end
+
+  onbutton(model.del_bt) do 
+    println(model.edit_row[])
+    
+    sql = """
+      DELETE FROM banco_cols 
+      WHERE id = $(model.edit_row[]["id"]) and banco_id = $(model.bdsel[]);"""
+  
+    #println(sql)
+    DBInterface.execute(db, sql)
+
+    #println(model.bdsel[])
     model.col_imp[] = get_cols(model.bdsel[])
     
   end
