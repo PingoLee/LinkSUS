@@ -3,7 +3,7 @@ module importadores
 using DataFrames, CSV, DBFTables, XLSX, SQLite
 using StringEncodings, Dates
 
-export get_csv_gal
+export get_csv_gal, get_dbf
 # coleções de funções para importar arquivos
 """Importa os arquivos do gal"""
 function get_csv_gal(file::String)::DataFrame
@@ -121,7 +121,7 @@ end
   
 
 # preprocessamento # formatação de bancos
-export formata_vr_covid, formata_zcd
+export formata_vr_covid, formata_zcd, formata_nsus_covid
 
 function formata_vr_covid(df::DataFrame)
     if "Coronavírus SARS-CoV2" in names(df)
@@ -174,6 +174,81 @@ function formata_zcd(df::DataFrame)
     
 end 
 
+"Formata o banco do notificasus para o cruzament do covid"
+function formata_nsus_covid(df::DataFrame)
+    comorb = ["comorb_pulm", "comorb_cardio", "comorb_renal", "comorb_hepat", "comorb_diabe", "comorb_imun", "comorb_hiv", "comorb_neopl", "comorb_tabag", "comorb_neuro_cronica", "comorb_neoplasias", "comorb_tuberculose", "comorb_obesidade", "comorb_cirurgia_bariat"]
+    tel = ["telefone", "telefone_2", "telefone_3"]
+    insertcols!(df, 1, :Comorbidade => "")
+    insertcols!(df, 1, :telefoneR => "")
+    insertcols!(df, 1, :endereco => "")
+    
+    for row in eachrow(df)
+        for col in comorb
+            if row[col] == 1
+                row[:Comorbidade] == "" ? row[:Comorbidade] = replace(col, "comorb_" => "") : row[:Comorbidade] = string(row[:Comorbidade], "| ", replace(col, "comorb_" => ""))
+            end
+        end
+
+        for col in tel
+          if ~ismissing(row[col])
+            row[:telefoneR] == "" ? row[:telefoneR] = string(row[col]) : row[:telefoneR] = string(row[:telefoneR], "\n", row[col])
+          end
+        end
+
+        if (~ismissing((row.bairro)) && ~contains(row.bairro, "Não Encontrado")) || (~ismissing(row.logradouro) && ~contains(row.logradouro, "Não Encontrado")) 
+
+          if ~ismissing(row.bairro) && ~contains(row.bairro, "Não Encontrado") 
+              row.endereco = uppercase(row.bairro)
+          end
+
+          if ~ismissing(row.logradouro) && ~contains(row.logradouro, "Não Encontrado")
+              if row.endereco != ""
+                  row.endereco = string(row.endereco, " ", uppercase(row.logradouro))
+              else
+                  row.endereco = uppercase(string(row.logradouro))
+              end 
+          end 
+
+          if  ~ismissing(row.quadra)  && ~contains(row.quadra, "Não Encontrado")
+            if row.endereco != ""           
+              row.endereco = string(row.endereco, " ", uppercase(row.quadra))
+            else
+              row.endereco = uppercase(string(row.quadra))
+            end
+          end
+
+          if  ~ismissing(row.lote)  && ~contains(row.lote, "Não Encontrado")        
+            if row.endereco != ""   
+              row.endereco = string(row.endereco, " ", uppercase(row.lote))               
+            else
+              row.endereco = uppercase(string(row.lote))                
+            end
+          end
+        end
+
+        if row.endereco != "" 
+            if ~ismissing(row.endereco_outra_cidade) 
+                row.endereco = uppercase(row.endereco_outra_cidade)
+            else
+                row.endereco = "COLETAR NO INFORME"
+            end
+        elseif ~ismissing(row.endereco_outra_cidade)
+            row.endereco = string(row.endereco, " ", uppercase(string(row.endereco_outra_cidade)))
+        end
+
+        if contains(row[:municipio_paciente], "PALMAS")
+          row[:municipio_paciente] = "172100"
+        else
+          row[:municipio_paciente] = "170000"
+        end
+
+    end
+
+    df.municipio_paciente = map(x -> parse(Int64, x), df.municipio_paciente )
+
+    # println(df)
+    
+end
 
 # Relatórios
 # Funções de carregamento
@@ -182,14 +257,14 @@ export carregar_csv
 "Carrega os csv para gerar os relatórios"
 function carregar_csv(bd::String)
   file = joinpath("data", "linksus", "importado", bd * ".csv")
-  return DataFrame(CSV.File(open(read, file)))
+  df = DataFrame(CSV.File(open(read, file)))
+  if "index" in names(df)
+    if contains(string(eltype(df.index)), "String")
+        df.index = map(x -> parse(Int64, x), df.index)
+    end
+  end
+  return df
 end
 
-export gerar_relatorio
-
-"gera o relatorio"
-function gerar_relatorio()
-
-end
 
 end

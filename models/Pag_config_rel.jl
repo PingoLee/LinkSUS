@@ -74,6 +74,31 @@ function get_rel_cols(loc)
   sql = """
     select
       tb.id,
+      tb.ordem
+    from rel_cols as tb
+      left join banco_cols on banco_cols.id = tb.var_org_id
+      left join bancos on bancos.id = tb.banco_id
+    where tb.cruz_rel_id = $loc
+    order by tb.ordem, tb.id
+  """
+  local df = DBInterface.execute(db, sql) |> DataFrame  
+
+  i = 1
+  for row in eachrow(df)
+    if row.ordem != i
+      sql = """UPDATE rel_cols
+        SET 
+        ordem = '$(i)'
+        WHERE id = '$(row.id)';"""
+
+      DBInterface.execute(db, sql)
+    end
+    i += 1
+  end
+  
+  sql = """
+    select
+      tb.id,
       tb.ordem,
       tb.var_org_id,
       banco_cols.col as var_org,
@@ -255,12 +280,14 @@ function handlers(model::Config_rel)
     model.list_rel[] = get_rel(selcrz) 
     model.dict_crz[] = get_crz_dict(selcrz)
     size(model.list_rel[], 1) == 0 ? model.selrel[] = "" :  model.selrel[] = 1
+    println(model.dict_crz[])
   end
 
   on(model.selrel) do selrel      
     if selrel != ""
       df = DBInterface.execute(db, "select id, nome, obs from opc_cruz_rel where id=$(selrel)") |> DataFrame
       println(df)
+      println(model.dict_crz[])
       if size(df, 1) > 0    
         ismissing(df[1, :obs]) ? model.obs_rel[] = "" : model.obs_rel[] = df[1, :obs]    
   
@@ -280,8 +307,10 @@ function handlers(model::Config_rel)
   end
 
   onbutton(model.edit_rel_bt) do 
+    println("foi")
+    println(model.selrel[])
     df = DBInterface.execute(db, "select * from opc_cruz_rel where id=$(model.selrel[])") |> DataFrame
-
+    print(df)
     if size(df, 1) > 0   
      model.info_rel[] = Dict(pairs(NamedTuple(df[1, :])))
     end
@@ -293,11 +322,10 @@ function handlers(model::Config_rel)
     """
     local df = DBInterface.execute(db, sql) |> DataFrame
 
-    if size(df, 1) == 0 
-    
+    if size(df, 1) == 0    
       ordem = size(model.col_cz_imp[], 1) + 1
       sql = """
-            INSERT INTO rel_cols 
+        INSERT INTO rel_cols 
             (ordem,var_org_id,var_rel,banco_id,cruz_rel_id)
             values
             ($ordem,'$(model.col_edit_row[]["id"])', null, '$(model.col_edit_row[]["banco_id"])', $(model.selrel[]))
@@ -313,13 +341,14 @@ function handlers(model::Config_rel)
   # update select report
   onbutton(model.save_rel_bt) do 
     println(model.info_rel[])
-
-    if model.info_rel[]["id"] != 0
+    println(model.selcrz[])
+    if haskey(model.info_rel[], "id") && model.info_rel[]["id"] != 0
       sql = """update opc_cruz_rel set
               nome = '$(model.info_rel[]["nome"])',              
               obs = '$(model.info_rel[]["obs"])'
             WHERE id = $(model.info_rel[]["id"]) and opc_cruz_id = $(model.selcrz[]);"""    
     else
+      print("foi")
       sql = """
           INSERT INTO opc_cruz_rel 
           (nome,obs,opc_cruz_id)
@@ -339,14 +368,15 @@ function handlers(model::Config_rel)
   end
 
   onbutton(model.del_cz_bt) do 
+    print(model.cz_row[])
     local sql = """
       delete
       from rel_cols
       where id = $(model.cz_row[]["id"])"""
 
-    #println(sql)
+    println(sql)
     DBInterface.execute(db, sql)
-
+    
     #println(model.bdsel[])
 
     model.col_b1_imp[] = get_bd(model.dict_crz[][:b1_id], model.selrel[])

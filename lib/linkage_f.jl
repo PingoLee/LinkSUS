@@ -13,7 +13,7 @@ function get_defs_prob(db::SQLite.DB)
 end
 
 # funções textuais
-export soundex_br, dateaval
+export soundex_br, dateaval, metaphone_br
 function encode(chr::SubString{String})
     if contains("BFPV", chr)
         return "1"
@@ -57,7 +57,6 @@ function soundex_br(s::String)::String
     end
     return output
 end
-
 
 function metaphone_br(Nome::String; Tamanho::Int64=10)::String
     # Separa as letras num array 

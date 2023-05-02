@@ -32,6 +32,9 @@ route("/cruzar", method = GET) do
   return Pag_ini.linkage_det()
 end
 
+route("/rel_nsus_covid_pos", method = POST) do  
+  return Pag_ini.processa_notificasus()
+end
 
 # CONFIGURAÇÃO
 Page("/config", view = "views/config.jl.html",

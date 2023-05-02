@@ -106,6 +106,10 @@
                 <q-btn color="red"  icon="delete_forever" :loading="isprocessing" :readonly="isprocessing" />            
               </div>
             </div>
+
+            <div v-show="modo_rev == true && linkado" class="row">              
+              <q-btn v-on:click="conclui_rev_bt = true" class="full-width" color="primary" label="Concluir revisão" :loading="isprocessing" :readonly="isprocessing"/>              
+            </div>
                       
             <div v-show="modo_rev == false && linkado" class="row">              
                 <q-btn v-on:click="rel_bt_pad += 1" class="full-width" color="primary" label="Gerar relatório" :loading="isprocessing" :readonly="isprocessing"/>              
@@ -253,10 +257,58 @@
     </q-card-section>
       
     <q-card-section class="q-pt-none">
-      <q-input disable v-model="textrel" label="Dados do cruzamento"/>
+      <div class="q-pa-md q-gutter-sm">
+        <div class="row">
+          <q-select class="col" filled v-model="selrel" :options="list_rel" label="Relatório" map-options emit-value
+            option-label="nome" option-value="id" >          
+          </q-select>
+
+          <q-input class="col-2" disable v-model="textrel" label="Dados do cruzamento"/>
+        </div>
+      </div>
       
     </q-card-section>      
   </q-card>
 </div>
+
+<div v-show="modo_rev == false && linkado" class="q-pa-md">
+  <q-form class="row q-gutter-xs" method="POST" action="/rel_nsus_covid_pos" v-on:submit='rel_nsus_covid_pos_Submit'>
+    <div class="col">
+      <q-card flat bordered class="my-card">
+        <q-card-section>
+          <div class="text-h6">Importe o arquivo xlsx baixado do Drive do COE</div>
+        </q-card-section>
+  
+        <q-card-section class="q-pt-none">
+          <div class="row">
+            <div class="col">   
+              <q-file :loading="isprocessing" :readonly="isprocessing" field-name="File1" v-model="client_file_ext" rounded="" outlined="" name="file1_id" :label="textext">                              
+                  <q-btn round dense flat color="primary"  icon="send" label="Gerar" type="submit" :loading="isprocessing" :readonly="isprocessing" />                
+              </q-file>    
+              <q-input v-show="false" filled v-model="cruzamento" label="Escolha quais bancos cruzar" map-options emit-value name="cruzamento" />
+            </div>            
+          </div>
+        </q-card-section>      
+      </q-card>      
+                   
+    </div>
+  </q-form>
+</div>
+
+<q-dialog v-model="alert">
+  <q-card>
+    <q-card-section>
+      <div class="text-h6">Atenção</div>
+    </q-card-section>
+
+    <q-card-section class="q-pt-none">
+      {{msg}}
+    </q-card-section>
+
+    <q-card-actions align="right">
+      <q-btn flat label="OK" color="primary" v-close-popup />
+    </q-card-actions>
+  </q-card>
+</q-dialog>
 
 <footer class="st-footer q-pa-sm">Powered by Genie</footer>

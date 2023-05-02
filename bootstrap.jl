@@ -3,3 +3,4 @@
 using LinkSUS
 const UserApp = LinkSUS
 LinkSUS.main()
+up()
