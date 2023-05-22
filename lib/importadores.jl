@@ -181,21 +181,30 @@ function formata_nsus_covid(df::DataFrame)
     insertcols!(df, 1, :Comorbidade => "")
     insertcols!(df, 1, :telefoneR => "")
     insertcols!(df, 1, :endereco => "")
+
+    dfCom = DataFrame(CSV.File(open(read, joinpath("data" , "linksus", "parameters", "nsus", "Comorbidades.csv"), enc"windows-1252"), delim=";"))
+
+    dict_comorb = Dict{String,String}()
+    for row in eachrow(dfCom)
+        dict_comorb[row[1]] = row[2]
+    end
+
     
+    # show(select(df, [:bairro, :logradouro, :quadra, :endereco]))
     for row in eachrow(df)
         for col in comorb
             if row[col] == 1
-                row[:Comorbidade] == "" ? row[:Comorbidade] = replace(col, "comorb_" => "") : row[:Comorbidade] = string(row[:Comorbidade], "| ", replace(col, "comorb_" => ""))
+                row[:Comorbidade] == "" ? row[:Comorbidade] = dict_comorb[col] : row[:Comorbidade] = """$(row[:Comorbidade])| \n $(dict_comorb[col])"""
             end
         end
 
         for col in tel
-          if ~ismissing(row[col])
-            row[:telefoneR] == "" ? row[:telefoneR] = string(row[col]) : row[:telefoneR] = string(row[:telefoneR], "\n", row[col])
+          if ~ismissing(row[col])            
+            row[:telefoneR] == "" ? row[:telefoneR] = string(row[col]) : ~contains(row[:telefoneR], string(row[col])) && (row[:telefoneR] = string(row[:telefoneR], "\n", row[col]))
           end
         end
 
-        if (~ismissing((row.bairro)) && ~contains(row.bairro, "Não Encontrado")) || (~ismissing(row.logradouro) && ~contains(row.logradouro, "Não Encontrado")) 
+        if (~ismissing(row.bairro) && ~contains(row.bairro, "Não Encontrado")) || (~ismissing(row.logradouro) && ~contains(row.logradouro, "Não Encontrado")) 
 
           if ~ismissing(row.bairro) && ~contains(row.bairro, "Não Encontrado") 
               row.endereco = uppercase(row.bairro)
@@ -226,7 +235,7 @@ function formata_nsus_covid(df::DataFrame)
           end
         end
 
-        if row.endereco != "" 
+        if row.endereco == "" 
             if ~ismissing(row.endereco_outra_cidade) 
                 row.endereco = uppercase(row.endereco_outra_cidade)
             else
@@ -243,6 +252,8 @@ function formata_nsus_covid(df::DataFrame)
         end
 
     end
+
+    # show(select(df, [:bairro, :logradouro, :quadra, :endereco]))
 
     df.municipio_paciente = map(x -> parse(Int64, x), df.municipio_paciente )
 

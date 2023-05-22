@@ -42,9 +42,12 @@
         </q-card-section>
   
         <q-card-section class="q-pt-none">
-          <q-file :disable="importado" field-name="File1" v-model="client_file1" rounded="" outlined="" name="file1_id" :label="labelb1"></q-file>
+          <q-file :disable="bd.b1 == null" field-name="File1" v-model="client_file1" rounded="" outlined="" name="file1_id" 
+          :label="bd.b1 == null ? 'Escolha o tipo de cruzamento' : 'Escolha o banco de dados: ' + bd.b1"></q-file>
           <br>
-          <q-file :disable="importado" field-name="File2" v-model="client_file2"  rounded="" outlined="" name="file2_id" :label="labelb2"></q-file>
+          <q-file :disable="bd.b2 == null" field-name="File2" v-model="client_file2"  rounded="" outlined="" name="file2_id" 
+          :label="bd.b2 == null ? 'Escolha o tipo de cruzamento' : 'Escolha o banco de dados: ' + bd.b2"></q-file>
+
         </q-card-section>      
       </q-card>
 
@@ -311,4 +314,4 @@
   </q-card>
 </q-dialog>
 
-<footer class="st-footer q-pa-sm">Powered by Genie</footer>
+

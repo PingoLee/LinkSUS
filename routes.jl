@@ -36,6 +36,10 @@ route("/rel_nsus_covid_pos", method = POST) do
   return Pag_ini.processa_notificasus()
 end
 
+route("/api/logout", method = GET) do  
+  exit()
+end
+
 # CONFIGURAÇÃO
 Page("/config", view = "views/config.jl.html",
   layout = "layouts/app.jl.html",

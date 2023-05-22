@@ -6,8 +6,10 @@ using StipplePlotly
 using Genie.Renderer.Json
 using SQLite, DataFrames, CSV, XLSX
 using StringEncodings, Dates
+using Revise
 
 include("../lib/importadores.jl")
+includet("../lib/importadores.jl")
 using .importadores
 include("../lib/linkage_f.jl")
 using .linkage_f
@@ -65,9 +67,12 @@ function get_st_crz_dict(loc)
   local sql = """
     select 
       tb.*,
-      crz.*
+      crz.*,
+      bd1.abrev as b1, bd2.abrev as b2
      from st_cruz as tb 
       left join opc_cruzamento as crz on crz.id = tb.crz_id
+      left join bancos as bd1 on bd1.id = crz.b1_id
+      left join bancos as bd2 on bd2.id = crz.b2_id
       
      where tb.id=$loc"""
   local df = DBInterface.execute(db, sql) |> DataFrame  
@@ -120,10 +125,12 @@ println(bd)
 @old_reactive! mutable struct Importar <: ReactiveModel
   # Botões
   limpar_tudo_bt::R{Bool} = false; limpar_crz_bt::R{Bool} = false
-  conclui_rev_bt::R{Bool} = false
+  conclui_rev_bt::R{Bool} = false; update_model_bt::R{Bool} = false
 
   # Alerta
   alert::R{Bool} = false; msg::R{String} = ""
+
+  bd::R{Dict} = bd
 
   # modelo
   cruzamentos::R{Vector} = cruzamentos(); linkado::R{Bool} = bd[:linkado]
@@ -149,10 +156,11 @@ end
 
 
 
-Stipple.js_mounted(::Importar) = raw"""
+Stipple.js_mounted(::Importar) = raw"""  
+  setTimeout(() => {this.update_model_bt = true}, 400);
   if ((this.row_rev == 0) && (this.conclui_rev_bt == false)) {
     this.row_rev = 1
-  }
+  };
 """
 
 Stipple.js_watch(app::Importar) = raw"""
@@ -212,6 +220,7 @@ Stipple.js_methods(m::Importar) = raw"""
         modelo.textext = "Processamento concluído";
         modelo.msg = resp.data.msg2;
         modelo.alert = true;
+        modelo.update_model_bt = true;
         
         notif({
           type: resp.data.cor,   
@@ -263,9 +272,10 @@ Stipple.js_methods(m::Importar) = raw"""
           }
         }
       ).then(function(resp){          
-        modelo.isprocessing = false
-        modelo.textb1 = resp.data.textb1 
-        modelo.textb2 = resp.data.textb2 
+        modelo.isprocessing = false;
+        modelo.textb1 = resp.data.textb1;
+        modelo.textb2 = resp.data.textb2;
+        modelo.update_model_bt = true;
 
         notif({
           type: resp.data.cor,   
@@ -309,7 +319,8 @@ Stipple.js_methods(m::Importar) = raw"""
         modelo.modo_rev = resp.data.modo_rev;
         modelo.linkado = 1;
         modelo.textrel = resp.data.textrel;
-        modelo.revisado = resp.data.revisado;        
+        modelo.revisado = resp.data.revisado;     
+        modelo.update_model_bt = true;   
         notif({
           type: resp.data.cor,   
           message: resp.data.msg      
@@ -343,9 +354,14 @@ function handlers(model::Importar)
 
   on(model.cruzamento) do crz   
     loc = cruzamento(crz)
+    sql = """
+    UPDATE st_cruz as tb
+      SET crz_id = $(crz)
+    WHERE tb.id = 1; """
+    DBInterface.execute(db, sql) 
+
     model.list_rel[] = get_rel(crz)
-    model.labelb1[] = "Escolha o banco de dados: " * loc.b1
-    model.labelb2[] = "Escolha o banco de dados: " * loc.b2
+    model.bd[] = get_st_crz(1)
   end 
 
   onany(model.par_rev, model.rev_unlock) do par_rev, rev_unlock 
@@ -362,6 +378,14 @@ function handlers(model::Importar)
     DBInterface.execute(db, "DELETE FROM list_cruz_rv")
     DBInterface.execute(db, "DELETE FROM st_cruz where id = 1")  
     model.linkado[] = false
+    model.bd[] = get_st_crz(1)
+    sql = """
+    UPDATE st_cruz as tb
+      SET crz_id = $(model.cruzamento[])
+    WHERE tb.id = 1; """
+    DBInterface.execute(db, sql)     
+    model.bd[] = get_st_crz(1)
+    model.list_rel[] = get_rel(model.cruzamento[])
   end
 
   onany(model.row_rev, model.max_rev) do row_rev, max_rev
@@ -376,7 +400,8 @@ function handlers(model::Importar)
       ismissing(dist_nm) ? cor_rev["nm"] = "light-blue" : dist_nm > 98 ? cor_rev["nm"] = "green" : dist_nm > 82 ? cor_rev["nm"] = "yellow-4" : cor_rev["nm"] = "red"
       ismissing(dict_form["distdn"]) ? cor_rev["dn"] = "light-blue" : dict_form["distdn"] > 98 ? cor_rev["dn"] = "green" : dict_form["distdn"] > 82 ? cor_rev["dn"] = "yellow-4" : dict_form["distdn"] > 49 ? cor_rev["dn"] = "orange-7" : cor_rev["dn"] = "red"
       ismissing(dict_form["sexo1"]) || ismissing(dict_form["sexo2"]) ? cor_rev["sx"] = "light-blue" : dict_form["sexo1"] == dict_form["sexo2"] ? cor_rev["sx"] = "green" : cor_rev["sx"] = "red"
-      ismissing(dict_form["ibge1"]) || ismissing(dict_form["ibge2"]) ? cor_rev["ibge"] = "light-blue" : dict_form["ibge2"] == dict_form["ibge2"] ? cor_rev["ibge"] = "green" : cor_rev["ibge"] = "red"
+      ismissing(dict_form["ibge1"]) || ismissing(dict_form["ibge2"]) ? cor_rev["ibge"] = "light-blue" : dict_form["ibge1"] == dict_form["ibge2"] ? cor_rev["ibge"] = "green" : cor_rev["ibge"] = "red"
+
 
       model.rev_unlock[] = false
       model.par_rev[] = dict_form["par_rev"]    
@@ -389,20 +414,28 @@ function handlers(model::Importar)
   onbutton(model.rel_bt_pad) do
     model.isprocessing[] = 1  
 
-    escrita, escrita_a = gerar_relatorio(model.cruzamento[], 1,2, bd[:nome])    
+    println(model.bd[])
 
-    print("foi")
-    
-    folder_path = joinpath("C:\\", "Bancos", "LinkSUS", "Relatórios", bd[:nome])  
+    println(model.selrel[])
 
-    if ~escrita || ~escrita_a
-      model.msg[] = """O relatório não foi gerado porque o arquivo está aberto, feche e gere o relatório novamente"""
+    if ismissing(model.selrel[]) 
+      model.msg[] = """Favor escolher um relatório antes de gerar relatório"""
     else
-      model.msg[] = """Cruzamento de dados concluído, você pode encontrar os resultados em $folder_path"""
-      try
-        run(`explorer.exe $(folder_path)`)
-      catch
-      end      
+      escrita, escrita_a = gerar_relatorio(db, model.cruzamento[], model.bd[:b1_id],  model.bd[:b2_id], model.bd[][:nome])    
+
+      print("foi")
+      
+      folder_path = joinpath("data","reports", model.bd[][:nome])  
+
+      if ~escrita || ~escrita_a
+        model.msg[] = """O relatório não foi gerado porque o arquivo está aberto, feche e gere o relatório novamente"""
+      else
+        model.msg[] = """Cruzamento de dados concluído, você pode encontrar os resultados em $folder_path"""
+        try
+          run(`explorer.exe $(folder_path)`)
+        catch
+        end      
+      end
     end
 
     model.alert[] = true
@@ -423,12 +456,18 @@ function handlers(model::Importar)
     #println(sql)
     
     DBInterface.execute(db, sql)
+    model.bd[] = get_st_crz(1)
     model.isprocessing[] = 0
   end
 
-  on(model.selrel) do 
-    
+  onbutton(model.update_model_bt) do     
+    model.bd[] = get_st_crz(1)
+    model.list_rel[] = get_rel(model.cruzamento[])    
   end
+
+  # on(model.selrel) do 
+    
+  # end
   model
 end
 
@@ -1176,327 +1215,6 @@ function revisa_row_par(row::String, par::String)
 end
 
 
-function rel_nsus_covid_pos(dfCOE::DataFrame, nome_cruz::String)
-  # Processa os casos no notifica que não foram laçados da planilha do coe
-  
-  dfCom = DataFrame(CSV.File(open(read, joinpath("data" , "linksus", "parameters", "nsus", "Comorbidades.csv"), enc"windows-1252"), delim=";"))     
-  
-  Colunas = ["LIBERAÇÃO EXAME", "Nº REQUISIÇÃO GAL", "Nº NOTIFICAÇÃO", "NOME", "CNS/CPF", "DN", "UNIDADE NOTIFICADORA", "METODOLOGIA"]
-
-  if issubset(Colunas, names(dfCOE)) == false
-      return true, "A planilha do COE teve o títulos das colunas modificados"
-  end
-
-          
-  dfCOE = DataFrames.select(dfCOE, ["LIBERAÇÃO EXAME", "Nº REQUISIÇÃO GAL", "Nº NOTIFICAÇÃO", "NOME", "CNS/CPF", "DN", "UNIDADE NOTIFICADORA", "METODOLOGIA"])
-  dfCOE."Nº NOTIFICAÇÃO" = map(x -> ismissing(x) ? missing : strip(string(x)), dfCOE."Nº NOTIFICAÇÃO")
-  #dfCOE = filter("Nº NOTIFICAÇÃO" => x -> ismissing(x) ? false : contains(x, "-2021"), dfCOE)
-
-  # Coloca o metaphone
-  col = ncol(dfCOE)
-  insertcols!(dfCOE, col + 1, "metaphone" => "")
-
-  for i = 1: nrow(dfCOE)
-      if ismissing(dfCOE[i, :DN]) == false && (isa(dfCOE[i, :DN], DateTime) || isa(dfCOE[i, :DN], Date))  && ismissing(dfCOE[i, "NOME"]) == false            
-          dfCOE[i, :metaphone] = string(metaphone_br(dfCOE[i, "NOME"], Tamanho=20), Dates.format(dfCOE[i, :DN], "yyyy-mm-dd"))
-      end
-  end
-
-  # importa notifica
-  dfNOT = get_csv_gal(joinpath("data", "linksus", "bruto", "file2_id.csv"))
-  
-  select!(dfNOT, ["num_notificacao", "nome_unidade", "data_notificacao", "cartao_sus", "cpf", "nome_paciente", "idade_anos_dt_notific",
-                  "data_nascimento", "sexo", "municipio_paciente", "bairro", "logradouro", "endereco_outra_cidade", 
-                  "quadra", "lote", "pais", "telefone", "telefone_2", "telefone_3", "comorb_pulm", "comorb_cardio", "comorb_renal", 
-                  "comorb_hepat", "comorb_diabe", "comorb_imun", "comorb_hiv", "comorb_neopl", "comorb_tabag", 
-                  "comorb_neuro_cronica", "comorb_neoplasias", "comorb_tuberculose", "comorb_obesidade", "comorb_cirurgia_bariat", 
-                  "amostra_t_rapido", "tipo_amostra_t_rapido", "dt_coleta_t_rapido", "resultado_t_rapido", "amostra_sorologia", "tipo_amostra_sorologia", 
-                  "dt_coleta_sorologia", "resultado_sorologia", "amostra_rt_pcr", "dt_coleta_rt_pcr", "resultado_rt_pcr", "class_final", "crit_conf", "dt_encerramento"])
-
-  
-  dfNOT = filter(["pais", "municipio_paciente"] => (x, y) -> ~ismissing(x) && contains(string(x), "NULL") && contains(string(y), "PALMAS - TO") , dfNOT)
-
-  # filtra casos encerrados
-  dfNOT = filter(["class_final", "crit_conf", "dt_encerramento"] => (x, y, z) -> 
-                  (ismissing(x) == false && x == 3 && ismissing(y) == false && ismissing(z) == false) ? false : true , dfNOT)
-
-  # Processar as informações
-
-  
-
-  LinC = nrow(dfCom)
-  LinN = nrow(dfNOT)
-
-  insertcols!(dfNOT, 1, :Comorbidade => "-")
-  insertcols!(dfNOT, 1, :Metodo_exame => "-")
-  insertcols!(dfNOT, 1, :Resultado => "-")
-  insertcols!(dfNOT, 1, :Obs_Exame => "-")
-  insertcols!(dfNOT, 1, :Endereço => "-")
-  insertcols!(dfNOT, 1, :Telefone_fim => "-")
-  insertcols!(dfNOT, 1, :Data_exame => "")
-  dfNOT.Data_exame = convert(Vector{Union{Missing,String, Date}}, dfNOT.Data_exame)
-
-  dfNOT.resultado_t_rapido = map(x -> ismissing(x) ? 0 : isa(x, Number) ? x : 0, dfNOT.resultado_t_rapido)
-  dfNOT.resultado_rt_pcr = map(x -> ismissing(x) ? 0 : isa(x, Number) ? x : 0, dfNOT.resultado_rt_pcr)
-  dfNOT.resultado_sorologia = map(x -> ismissing(x) ? 0 : isa(x, Number) ? x : 0, dfNOT.resultado_sorologia)
-  dfNOT.dt_coleta_t_rapido = map(x -> ismissing(x) ? missing : isa(x, Date) ? x : contains(x,"-") ? Date(x, DateFormat("yyyy-mm-dd")) : Date(x, DateFormat("dd/mm/yyyy")), dfNOT.dt_coleta_t_rapido)
-  dfNOT.dt_coleta_sorologia = map(x -> ismissing(x) ? missing : isa(x, Date) ? x : contains(x,"-") ? Date(x, DateFormat("yyyy-mm-dd")) : Date(x, DateFormat("dd/mm/yyyy")), dfNOT.dt_coleta_sorologia)
-  dfNOT.dt_coleta_rt_pcr = map(x -> ismissing(x) ? missing : isa(x, Date) ? x : contains(x,"-") ? Date(x, DateFormat("yyyy-mm-dd")) : Date(x, DateFormat("dd/mm/yyyy")), dfNOT.dt_coleta_rt_pcr)        
-  dfNOT.data_notificacao = map(x -> ismissing(x) ? missing : isa(x, Date) ? x : contains(x,"-") ? Date(x, DateFormat("yyyy-mm-dd")) : Date(x, DateFormat("dd/mm/yyyy")), dfNOT.data_notificacao)
-  dfNOT.data_nascimento = map(x -> ismissing(x) ? missing : isa(x, Date) ? x : contains(x,"-") ? Date(x, DateFormat("yyyy-mm-dd")) : Date(x, DateFormat("dd/mm/yyyy")), dfNOT.data_nascimento)
-
-  for i = 1:LinN
-      # consolida as comorbidades
-      for j = 1:LinC    
-          if isa(dfNOT[i,dfCom[j,1]], Number) && dfNOT[i,dfCom[j,1]] == 1
-              if dfNOT[i, :Comorbidade] == "-"
-                  dfNOT[i, :Comorbidade] = dfCom[j,2]
-              else
-                  dfNOT[i, :Comorbidade] = join([string(dfNOT[i, :Comorbidade]), "| \n", dfCom[j,2]])
-              end
-          end
-      end
-          
-      # Identificar o tipo de teste
-      if dfNOT[i, "resultado_t_rapido"] == 1
-          if dfNOT[i, "resultado_rt_pcr"] == 2
-              dfNOT[i, "Obs_Exame"] =  "RT-PCR deu negativo"               
-          end
-          if dfNOT[i, "tipo_amostra_t_rapido"] == 1
-              dfNOT[i, "Resultado"] = "IgG POSITIVO"
-          elseif dfNOT[i, "tipo_amostra_t_rapido"] == 2
-              dfNOT[i, "Resultado"] = "IgM POSITIVO"
-          elseif dfNOT[i, "tipo_amostra_t_rapido"] == 3
-              dfNOT[i, "Resultado"] = "IgG/IgM POSITIVO"
-          elseif dfNOT[i, "tipo_amostra_t_rapido"] == 4
-              dfNOT[i, "Resultado"] = "AG POSITIVO"    
-          end
-          dfNOT[i, "Metodo_exame"] = "Teste Rápido"               
-          if ismissing(dfNOT[i, "dt_coleta_t_rapido"]) == false
-              if isa(dfNOT[i, :dt_coleta_t_rapido], Date) 
-                  dfNOT[i, "Data_exame"] = dfNOT[i, "dt_coleta_t_rapido"]
-              else
-                  dfNOT[i, "Data_exame"] = Dates.format(dfNOT[i, "dt_coleta_t_rapido"], "dd/mm/yyyy")
-              end    
-          end
-      elseif dfNOT[i, "resultado_sorologia"] == 1
-          if dfNOT[i, "resultado_rt_pcr"] == 2
-              dfNOT[i, "Obs_Exame"] =  "RT-PCR deu negativo"       
-          end
-          dfNOT[i, "Metodo_exame"] = "Sorologia"
-          if dfNOT[i, "tipo_amostra_sorologia"] == 1
-              dfNOT[i, "Resultado"] = "IgA POSITIVO"
-          elseif dfNOT[i, "tipo_amostra_sorologia"] == 2
-              dfNOT[i, "Resultado"] = "IgG POSITIVO"
-          elseif dfNOT[i, "tipo_amostra_sorologia"] == 3
-              dfNOT[i, "Resultado"] = "IgM POSITIVO"
-          elseif dfNOT[i, "tipo_amostra_sorologia"] == 4
-              dfNOT[i, "Resultado"] = "IgG/IgM POSITIVO"    
-          end
-          if ismissing(dfNOT[i, "dt_coleta_sorologia"]) == false
-              if isa(dfNOT[i, :dt_coleta_sorologia], Date) 
-                  dfNOT[i, "Data_exame"] = dfNOT[i, "dt_coleta_sorologia"]
-              else
-                  dfNOT[i, "Data_exame"] = Dates.format(dfNOT[i, "dt_coleta_sorologia"], "dd/mm/yyyy")
-              end                  
-          end
-      elseif dfNOT[i, "resultado_rt_pcr"] == 1
-          dfNOT[i, "Metodo_exame"] = "RT-PCR"
-          dfNOT[i, "Resultado"] = "DETECTÁVEL"
-          if ismissing(dfNOT[i, "dt_coleta_rt_pcr"]) == false
-              if isa(dfNOT[i, :dt_coleta_rt_pcr], Date) 
-                  dfNOT[i, "Data_exame"] = dfNOT[i, "dt_coleta_rt_pcr"]
-              else
-                  dfNOT[i, "Data_exame"] = Dates.format(dfNOT[i, "dt_coleta_rt_pcr"], "dd/mm/yyyy")
-              end
-          end
-      else
-          if dfNOT[i, "resultado_rt_pcr"] == 2
-              dfNOT[i, "Metodo_exame"] = "RT-PCR"
-              dfNOT[i, "Resultado"] = "NÃO DETECTÁVEL"
-          elseif dfNOT[i, "resultado_sorologia"] == 2
-              dfNOT[i, "Metodo_exame"] = "Sorologia"
-              dfNOT[i, "Resultado"] = "NEGATIVO"
-          elseif dfNOT[i, "resultado_t_rapido"] == 2
-              dfNOT[i, "Metodo_exame"] = "Teste Rápido"
-              dfNOT[i, "Resultado"] = "NEGATIVO"
-          end
-      end
-
-      Testes = ["resultado_rt_pcr", "resultado_sorologia", "resultado_t_rapido"]
-      N_testes = 0
-      Checagem = 0
-      Divergencia = "Não"
-      for j in Testes
-          if dfNOT[i, j] in [1,2]
-              N_testes += 1
-              if Checagem != 0
-                  if  Checagem != dfNOT[i, j]
-                      Divergencia = "Sim"
-                  end
-              else
-                  Checagem = dfNOT[i, j] 
-              end
-          end
-      end
-
-      if N_testes > 1
-          if dfNOT[i, "Obs_Exame"] ==  "RT-PCR deu negativo"
-          elseif Divergencia == "Não"
-              dfNOT[i, "Obs_Exame"] =  "Mais de um teste informado"               
-          else
-              dfNOT[i, "Obs_Exame"] =  "Mais de um teste informado, mas divergente"
-          end            
-      end
-
-      # Corrige endereço
-      if (ismissing(dfNOT[i, "bairro"]) == false && contains(dfNOT[i, "bairro"],"Não Encontrado") == false) || 
-          (ismissing(dfNOT[i, "logradouro"]) == false && contains(dfNOT[i, "logradouro"],"Não Encontrado")== false)
-              if (ismissing(dfNOT[i, "bairro"]) == false && contains(dfNOT[i, "bairro"],"Não Encontrado")== false)
-                  dfNOT[i, "Endereço"] = uppercase(dfNOT[i, "bairro"])
-              end
-
-              if (ismissing(dfNOT[i, "logradouro"]) == false && contains(dfNOT[i, "logradouro"],"Não Encontrado")== false)
-                  if dfNOT[i, "Endereço"] == "-"
-                      dfNOT[i, "Endereço"] = dfNOT[i, "logradouro"]
-                  else
-                      dfNOT[i, "Endereço"] = join([dfNOT[i, "Endereço"], " ", uppercase(dfNOT[i, "logradouro"])])
-                  end
-              end
-
-              if (ismissing(dfNOT[i, "quadra"]) == false && contains(string(dfNOT[i, "quadra"]),"Não Encontrado")== false)
-                  if dfNOT[i, "Endereço"] == "-"
-                      dfNOT[i, "Endereço"] = string(dfNOT[i, "quadra"])
-                  else
-                      dfNOT[i, "Endereço"] = join([dfNOT[i, "Endereço"], " ", uppercase(string(dfNOT[i, "quadra"]))])
-                  end
-              end
-
-              if (ismissing(dfNOT[i, "lote"]) == false && contains(string(dfNOT[i, "lote"]),"não sabe dizer")== false)
-                  if dfNOT[i, "Endereço"] == "-"
-                      dfNOT[i, "Endereço"] = dfNOT[i, "lote"]
-                  else
-                      dfNOT[i, "Endereço"] = join([dfNOT[i, "Endereço"], " Lote: ", uppercase(string(dfNOT[i, "lote"]))])
-                  end
-              end
-      end
-      
-
-      if dfNOT[i, "Endereço"] == "-"
-          if ismissing(dfNOT[i, "endereco_outra_cidade"]) == false
-              dfNOT[i, "Endereço"] = uppercase(string(dfNOT[i, "endereco_outra_cidade"]))
-          else                    
-              dfNOT[i, "Endereço"] = "COLETAR NO INFORME"
-          end
-      elseif ismissing(dfNOT[i, "endereco_outra_cidade"]) == false
-          dfNOT[i, "Endereço"] = join([dfNOT[i, "Endereço"], "; ", uppercase(string(dfNOT[i, "endereco_outra_cidade"]))])
-      end
-
-      if ismissing(dfNOT[i, "telefone"]) == false && dfNOT[i, "telefone"] != 0
-          dfNOT[i, "Telefone_fim"] = string(dfNOT[i, "telefone"])
-      end
-
-      if ismissing(dfNOT[i, "telefone_2"]) == false && dfNOT[i, "telefone_2"] != 0
-          if contains(string(dfNOT[i, "Telefone_fim"]), string(dfNOT[i, "telefone_2"])) == false
-              dfNOT[i, "Telefone_fim"] = join([dfNOT[i, "Telefone_fim"], "| \n", string(dfNOT[i, "telefone_2"])])
-          end
-      end
-      if ismissing(dfNOT[i, "telefone_3"]) == false && dfNOT[i, "telefone_3"] != 0
-          if contains(string(dfNOT[i, "Telefone_fim"]), string(dfNOT[i, "telefone_3"])) == false
-              dfNOT[i, "Telefone_fim"] = join([dfNOT[i, "Telefone_fim"], "| \n", string(dfNOT[i, "telefone_3"])])
-          end
-      end
-      if ismissing(dfNOT[i, "cartao_sus"]) == false && dfNOT[i, "cartao_sus"] == 0
-          dfNOT[i, "cartao_sus"] = dfNOT[i, "cpf"]
-      end
-      dfNOT[i, "sexo"] = SubString(dfNOT[i, "sexo"], 4, 4)
-      if findfirst('(', dfNOT[i, "nome_unidade"]) != nothing
-          dfNOT[i, "nome_unidade"] = SubString(dfNOT[i, "nome_unidade"], 1, findfirst('(', dfNOT[i, "nome_unidade"]) - 1)
-      end
-  end
-
-  dfNOT = filter("Resultado" => x -> x != "-", dfNOT)
-
- 
-
-  # dfCOE."pais" = map(x -> ismissing(x) ? missing : string(x), dfCOE."pais")
-
-  
-  rename!(dfCOE, Dict("Nº NOTIFICAÇÃO" => "num_notificacao"))
-  dfNOT = leftjoin(dfNOT, dfCOE,  on="num_notificacao", matchmissing=:equal)
-  #dfNOT = filter(["Resultado", "NOME"]  => (x, y) -> x != "-" & ismissing(y), dfNOT)
-
-  dfNOT = filter(["Resultado", "NOME"]  => (x, y) -> x != "NEGATIVO" && x != "NÃO DETECTÁVEL" && ismissing(y), dfNOT)
-
-  insertcols!(dfNOT, 1, :N => "")
-  insertcols!(dfNOT, 1, :Cirtério => "C.L")
-  insertcols!(dfNOT, 1, "STATUS e-SUS VE" => "")
-
-  insertcols!(dfNOT, 1, :GAL => "")
-  insertcols!(dfNOT, 1, "DATA DO BOLETIM" => "")
-  insertcols!(dfNOT, 1, "Laboratório" => "")
-
-  select!(dfNOT, ["data_notificacao", "N", "Cirtério", "STATUS e-SUS VE", "Data_exame", "GAL", "DATA DO BOLETIM", "num_notificacao",
-                  "nome_paciente", "idade_anos_dt_notific", "data_nascimento", "sexo", "cartao_sus", "Comorbidade", 
-                  "Telefone_fim", "Endereço", "nome_unidade", "Laboratório", "Metodo_exame", "Resultado", "Obs_Exame"])
-
-  
-  # Monta o código metaphone e grava
-  col = ncol(dfNOT)
-  insertcols!(dfNOT, col + 1, "metaphone" => "")
-
-  for i = 1: nrow(dfNOT)
-      if ismissing(dfNOT[i, :data_nascimento]) == false && (isa(dfNOT[i, :data_nascimento], DateTime) || isa(dfNOT[i, :data_nascimento], Date))
-          dfNOT[i, :metaphone] = string(metaphone_br(dfNOT[i, :nome_paciente], Tamanho=20), Dates.format(dfNOT[i, :data_nascimento], "yyyy-mm-dd"))
-      end
-  end
-  
-  # Local = joinpath("data","reports", nome_cruz, "Notificações faltantes.xlsx")
-
-  # df = copy(dfNOT)
-
-  # for col in names(df)
-  #     col2 = Symbol(col)
-  #     df[!, col2] = map(x -> ismissing(x) ? missing : string(x), df[!, col2])
-  # end
-  
-  # XLSX.writetable(Local, df, overwrite=true, sheetname="report", anchor_cell="A1")
-
-  # monta a deduplicação    
-  #dfCOE[!, "LIBERAÇÃO EXAME"] = map(x -> ismissing(x) || (isa(x, DateTime) == false && isa(x, Date) == false)  ? missing : Dates.format(x, "dd/mm/yyyy"), dfCOE[!, "LIBERAÇÃO EXAME"])  
-  dfNOT = leftjoin(dfNOT, DataFrames.select(dfCOE, ["metaphone", "num_notificacao", "UNIDADE NOTIFICADORA", "LIBERAÇÃO EXAME", "METODOLOGIA"]) ,  
-                          on="metaphone", matchmissing=:equal, makeunique=true)
-  
-  data = Date(2021,08,01)
-
-  dfNOT = filter(["data_notificacao", "Data_exame"]  => (x, y) -> x >= data || (ismissing(y) == false && isa(y, DateTime) && y >= data), dfNOT)
- 
-  Local = joinpath("data","reports", nome_cruz, "Notificações faltantes.xlsx")
-  
-  df = copy(dfNOT)
-
-  df.data_notificacao = map(x -> ismissing(x) ? missing :  Dates.format(x, "dd/mm/yyyy"), df.data_notificacao)
-  df.Data_exame = map(x -> ismissing(x) ? missing :  Dates.format(x, "dd/mm/yyyy"), df.Data_exame)
-  df.data_nascimento = map(x -> ismissing(x) ? missing :  Dates.format(x, "dd/mm/yyyy"), df.data_nascimento)
-  df[!, "LIBERAÇÃO EXAME"] = map(x -> ismissing(x) ? missing :  Dates.format(x, "dd/mm/yyyy"),  df[!, "LIBERAÇÃO EXAME"])
-
-  for col in names(df)
-      col2 = Symbol(col)
-      df[!, col2] = map(x -> ismissing(x) ? missing : string(x), df[!, col2])
-  end
-  
-  local gravado = false
-  try
-    XLSX.writetable(Local, df, overwrite=true, sheetname="report", anchor_cell="A1")
-    gravado = true
-  catch
-    gravado = false
-  end
-  
-
-  return gravado, "Processamento concluído"
-
-end 
 
 
 
