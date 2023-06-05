@@ -45,3 +45,6 @@ node_modules/
 data/linksus/bruto/*
 data/linksus/importado/*
 data/reports/*
+
+# copilation
+copilation/sysimg.so

@@ -14,10 +14,10 @@ end
 function get_dbf(file::String)::DataFrame
     return DataFrame(DBFTables.Table(file))
 end
-
+# importadores.get_dbf("C:\\Sistemas\\LinkSUS\\data\\linksus\\bruto\\file2_id.dbf")
 
 # importa do sql
-export get_sql_bancos_defs, get_sql_bancos_cols, get_sql_bancos_subs, get_sql_bancos_prep
+export get_sql_bancos_defs, get_sql_bancos_cols, get_sql_bancos_subs, get_sql_bancos_prep, get_sql_rel_pos
 
 """importa o dict dos bancos (b1 e b2)"""
 function get_sql_bancos_defs(db::SQLite.DB, crz::String)
@@ -67,7 +67,7 @@ function get_sql_bancos_subs(db::SQLite.DB, banco_id::Int64)::DataFrame
     return df1
 end
 
-"""Importa a tabela de funções para pré-processar os bancos de dados o banco de dados"""
+"""Importa a tabela de funções para pré-processar os bancos de dados"""
 function get_sql_bancos_prep(db::SQLite.DB, banco_id::Int64)::DataFrame
     df1 = DBInterface.execute(db, 
         """select 
@@ -79,11 +79,26 @@ function get_sql_bancos_prep(db::SQLite.DB, banco_id::Int64)::DataFrame
     return df1
 end
 
+"""Importa a tabela de funções para pos-processar os bancos de dados após gerar o relatório"""
+function get_sql_rel_pos(db::SQLite.DB, rel_id::Int64)::DataFrame
+    df1 = DBInterface.execute(db, 
+        """select 
+                *
+            from rel_pos as tb                 
+
+            where tb.rel_id='$rel_id'""") |> DataFrame 
+   
+    return df1
+end
 
 
 # formatação de coluna
-export format_sx, format_sx_1m, format_dt, format_dt_sinan, format_sx_nsus, format_dt_string
+export format_sx, format_sx_1m, format_dt, format_dt_sinan, format_sx_nsus, format_dt_string, format_dbf_string
 
+"""Formata os strings do banco de dados DBF"""
+function format_dbf_string(df1::DataFrame, col::String)
+    return map(x -> ismissing(x) ? missing : decode(Vector{UInt8}(x), "ISO-8859-1") , df1[!, col])    
+end
 
 """Formata o sexo 'Feminino' em 'F' """
 function format_sx(df1::DataFrame, col::String)
@@ -107,21 +122,20 @@ function format_dt(df1::DataFrame, col::String)
     return map(x -> ismissing(x) ? missing : string(Date(x,df)) , df1[!, col])    
 end
 
-"""Formata string em data 20011231 """
+"""Formata string para data 20011231 """
 function format_dt_sinan(df1::DataFrame, col::String)
     df = DateFormat("yyyymmdd");
     return map(x -> ismissing(x) ? missing : string(Date(x,df)) , df1[!, col])    
 end
 
 """Converte data em string """
-function format_dt_string(df1::DataFrame, col::String)
-    df = DateFormat("yyyymmdd");
+function format_dt_string(df1::DataFrame, col::String)    
     return map(x -> ismissing(x) ? missing : string(x) , df1[!, col])    
 end
   
 
 # preprocessamento # formatação de bancos
-export formata_vr_covid, formata_zcd, formata_nsus_covid
+export formata_vr_covid, formata_zcd, formata_nsus_covid, formata_arbo
 
 function formata_vr_covid(df::DataFrame)
     if "Coronavírus SARS-CoV2" in names(df)
@@ -258,6 +272,23 @@ function formata_nsus_covid(df::DataFrame)
     df.municipio_paciente = map(x -> parse(Int64, x), df.municipio_paciente )
 
     # println(df)
+    
+end
+
+"""Formata o banco de Chikungunya e dengue do sinan net"""
+function formata_arbo(df::DataFrame)
+
+    cols = ["RES_CHIKS1", "RES_CHIKS2", "RESUL_SORO", "RESUL_NS1", "RESUL_VI_N", "RESUL_PCR_"]
+
+    insertcols!(df, 1, :ExameR => "")
+
+    for row in eachrow(df)
+        for col in cols
+            if  ~ismissing(row[col]) && row[col] in ["1", "2"]   
+                row[:ExameR] = "Sim"
+            end
+        end
+    end
     
 end
 

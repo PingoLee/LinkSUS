@@ -7,12 +7,11 @@
 ENV["GENIE_ENV"] = "test"
 push!(LOAD_PATH, abspath(normpath(joinpath("..", "src"))))
 
-cd("..")
 using Pkg
 Pkg.activate(".")
 
 using Genie
-Genie.loadapp("..")
+Genie.loadapp()
 
 cd(@__DIR__)
 Pkg.activate(".")
@@ -26,6 +25,10 @@ Logging.global_logger(NullLogger())
   @includetests ARGS
 end
 
-#include("models//Pag_ini.jl")
-#include("models//Pag_config.jl")
-#include("models//Pag_config_rel.jl")
+# test febre do nilo
+using XLSX
+using DataFrames
+using Dates
+using Tables
+
+

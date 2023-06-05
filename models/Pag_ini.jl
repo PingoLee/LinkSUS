@@ -14,7 +14,9 @@ using .importadores
 include("../lib/linkage_f.jl")
 using .linkage_f
 include("../lib/relatorio.jl")
+includet("../lib/relatorio.jl")
 using .relatorio
+
 
 const ALL = "All"
 const db = SQLite.DB(joinpath("data", "linksus.db"))
@@ -259,10 +261,37 @@ Stipple.js_methods(m::Importar) = raw"""
         message: 'Enviado, aguarde',
         position:'center'
       });
-      //alert(this.client_file1);
+      //console.log( this.client_file1);
+      //console.log( this.client_file2);
+      //console.log(evt.target);
       
-      const formData = new FormData(evt.target);
-      const data = [];
+      //var formData = new FormData(evt.target);
+      var formData = new FormData();
+      //const data = [];
+
+      var cont = 0
+      var chave = []
+   
+      this.client_file1.forEach(file=>{
+        cont += 1
+        formData.append(`file1_id_${cont}`, file);
+        chave.push(`file1_id_${cont}`)
+      });        
+      
+      formData.append("file1_id", chave);
+    
+      cont = 0
+      chave = []
+      this.client_file2.forEach(file=>{
+        cont += 1
+        formData.append(`file2_id_${cont}`, file);
+        chave.push(`file2_id_${cont}`)
+      });        
+      formData.append("file2_id", chave);
+        
+      formData.append("cruzamento", this.cruzamento);
+      
+      //console.log(formData)
 
       axios.post('/sub',
         formData,
@@ -377,6 +406,8 @@ function handlers(model::Importar)
     DBInterface.execute(db, "DELETE FROM list_cruz")
     DBInterface.execute(db, "DELETE FROM list_cruz_rv")
     DBInterface.execute(db, "DELETE FROM st_cruz where id = 1")  
+    DBInterface.execute(db, """VACUUM "main" """)
+    DBInterface.execute(db, """VACUUM "temp" """)
     model.linkado[] = false
     model.bd[] = get_st_crz(1)
     sql = """
@@ -425,7 +456,9 @@ function handlers(model::Importar)
 
       print("foi")
       
-      folder_path = joinpath("data","reports", model.bd[][:nome])  
+      folder_path = joinpath(pwd(), "data","reports", model.bd[][:nome])  
+
+      println(folder_path)
 
       if ~escrita || ~escrita_a
         model.msg[] = """O relatório não foi gerado porque o arquivo está aberto, feche e gere o relatório novamente"""
@@ -488,55 +521,91 @@ function receb_arquivos()
   files = Genie.Requests.filespayload()
   post = Genie.Requests.postpayload()  
 
-  #println(post[:cruzamento])    
+  println(post)
+  # println(files)
+
+  # println(post[:cruzamento])    
   b1, b2 = get_sql_bancos_defs(db, post[:cruzamento])
 
-  # checa e importa o banco 1
-  f = files[b1.file] # pega dict do file form (file1_id)
-  if lowercase(splitext(f.name)[2]) != b1.formato 
+  fs = []
+  # println(Symbol(b1.file))
+  # f = files[Symbol(b1.file)]
+  if haskey(post, Symbol(b1.file))
+    fs0 = split(post[ Symbol(b1.file)], ",")
+    for f1 in fs0
+      push!(fs, files[f1])
+    end
+  else
     resp["cor"] = "negative"
-    resp["msg"] = "O formato do banco de cados " * b1.abrev * " está erradado, o arquivo deve estar no formato " * b1.formato 
-    return Json.json(resp)    
+    resp["msg"] = "O banco de dados 1 não foi escolhido" 
+    return Json.json(resp)
+  end
+
+  df1 = missing
+
+  # checa e importa o banco 1
+  # println(files[b1.file])
+  for f in fs  
+    if lowercase(splitext(f.name)[2]) != b1.formato 
+      resp["cor"] = "negative"
+      resp["msg"] = "O formato do banco de cados " * b1.abrev * " está erradado, o arquivo deve estar no formato " * b1.formato 
+      return Json.json(resp)    
+    end
+    
+    write(joinpath("data", "linksus", "bruto", string(b1.file, splitext(f.name)[2])), f.data)
+    df = getfield(importadores, Symbol(b1.function))(joinpath("data", "linksus", "bruto", string(b1.file, splitext(f.name)[2]))) # Importa a base de dados como df  
+
+    erro, resp = valida_bancos(db, df, b1, resp)
+    erro && (return Json.json(resp))
+    
+    if ismissing(df1)
+      df1 = df
+    else
+      df1 = append!(df1, df)
+    end
   end
   
-  write(joinpath("data", "linksus", "bruto", string(b1.file, splitext(f.name)[2])), f.data)
-  df1 = getfield(importadores, Symbol(b1.function))(joinpath("data", "linksus", "bruto", string(b1.file, splitext(f.name)[2]))) # Importa a base de dados como df  
-
-  erro, resp = valida_bancos(db, df1, b1, resp)
-  erro && (return Json.json(resp))
-  
-  formata_proc_bd(db, df1, csv_save, b1)
+  formata_proc_bd(db, df1, csv_save, b1) # sobe os dados para o sql, dados apenas de cruzamento
 
   b1_n = size(df1,1)
   textb1 = "Foram importados $(size(df1,1)) registros"
 
-  
-  # checa e importa o banco 2
-  try
-    f = files[b2.file] # pega dict do file form (file1_id)
-  catch
+  println("inicia b2")
+  # checa e importa o banco 2 
+  fs = []
+  if haskey(post, Symbol(b2.file))
+    fs0 = split(post[ Symbol(b2.file)], ",")
+    for f1 in fs0
+      push!(fs, files[f1])
+    end
+  else
     resp["cor"] = "negative"
     resp["msg"] = "O banco de dados 2 não foi escolhido" 
-    return Json.json(resp)  
+    return Json.json(resp)
   end
 
-  if lowercase(splitext(f.name)[2]) != b2.formato 
-    resp["cor"] = "negative"
-    resp["msg"] = "O formato do banco de cados " * b2.abrev * " está erradado, o arquivo deve estar no formato " * b2.formato 
-    return Json.json(resp)    
-  end
-  write(joinpath("data", "linksus", "bruto", string(b2.file, splitext(f.name)[2])), f.data)
-  df1 = getfield(importadores, Symbol(b2.function))(joinpath("data", "linksus", "bruto", string(b2.file, splitext(f.name)[2]))) # Importa a base de dados como df
-  
-  #show(df1)
+  df1 = missing
+  for f in fs  
+    if lowercase(splitext(f.name)[2]) != b2.formato 
+      resp["cor"] = "negative"
+      resp["msg"] = "O formato do banco de cados " * b2.abrev * " está erradado, o arquivo deve estar no formato " * b2.formato 
+      return Json.json(resp)    
+    end
+    
+    write(joinpath("data", "linksus", "bruto", string(b2.file, splitext(f.name)[2])), f.data)
+    df = getfield(importadores, Symbol(b2.function))(joinpath("data", "linksus", "bruto", string(b2.file, splitext(f.name)[2]))) # Importa a base de dados como df  
 
-  erro, resp = valida_bancos(db, df1, b2, resp)
-  erro && (return Json.json(resp))
-  
+    erro, resp = valida_bancos(db, df, b2, resp)
+    erro && (return Json.json(resp))
+    
+    if ismissing(df1)
+      df1 = df
+    else
+      df1 = append!(df1, df)
+    end
+  end
+   
   formata_proc_bd(db, df1, csv_save, b2)
-
-  #show(df1)
-
   b2_n = size(df1,1)
   textb2 = "Foram importados $(size(df1,1)) registros"
   
@@ -622,6 +691,18 @@ function formata_proc_bd(db::SQLite.DB, df::DataFrame, csv_save::Dict, row::Data
     rename!(df, Dict([lst[i] => lst_new[i]]))
   end
 
+  show(df)
+  
+  # for row in eachrow(df)
+  #   x = row.NM_PACIENT
+  #   println(x)
+  #   ismissing(x) || x == "" ? missing : filter(x -> isletter(x) || isspace(x),
+  #     replace(replace(Unicode.normalize(uppercase(x), stripcc=true, stripmark=true, chartransform=Unicode.julia_chartransform), 
+  #     "VIVO" => "", "II" => "I", "PP" => "P", "LL" => "L", "Ç" => "S", "RR" => "R", "TT" => "T", "TH" => "T", 
+  #     "SOUZA" => "SOUSA", "Y" => "I", "NN" => "N", "SCH" => "X", "SH" => "X", "PH" => "F", "TH" => "T", "CHR" => "K", "CH" => "X",
+  #     " DOS " => " ", " DAS " => " ", " DE " => " ", " DA " => " ", " DO " => " ", " E " => " "), r" +" => " "))
+  # end
+
   df.nome = map(x -> ismissing(x) || x == "" ? missing : filter(x -> isletter(x) || isspace(x),
       replace(replace(Unicode.normalize(uppercase(x), stripcc=true, stripmark=true, chartransform=Unicode.julia_chartransform), 
       "VIVO" => "", "II" => "I", "PP" => "P", "LL" => "L", "Ç" => "S", "RR" => "R", "TT" => "T", "TH" => "T", 
@@ -692,7 +773,7 @@ function formata_proc_bd(db::SQLite.DB, df::DataFrame, csv_save::Dict, row::Data
   DBInterface.execute(db, "DELETE FROM $(string(csv_save[row.file], "_proc"))")
   
   #replace!(df.a, "None" => "c")
-  show(filter([:index] => x -> x == 10329, df))
+  # show(filter([:index] => x -> x == 10329, df))
 
   SQLite.load!(df, db, string(csv_save[row.file], "_proc"))  
   
@@ -1214,6 +1295,108 @@ function revisa_row_par(row::String, par::String)
   revisa_row_par(parse(Int64, row), par)
 end
 
+
+# Relatórios
+"Constrói o df com o relatório"
+function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
+  sql = """
+    select
+      tb.ordem,
+      bd.col,
+      tb.banco_id,
+      tb.var_rel
+
+    from rel_cols tb
+      left join banco_cols as bd on bd.id = tb.var_org_id
+
+    where tb.cruz_rel_id = $(rel_id)
+
+    order by tb.ordem
+  """
+  df_cols = DBInterface.execute(db, sql) |> DataFrame
+
+  # show(df_cols)
+
+  sql = """
+    select
+      id1, id2
+    from list_cruz as list
+      left join list_cruz_rv as rv on rv.list_id = list.id
+    where
+      not rv.par_rev is 'N'
+    """
+  rel = DBInterface.execute(db, sql) |> DataFrame
+
+  # println(size(rel, 1))
+  # show(rel)
+
+  df1 = carregar_csv("b1")  
+  # show(df1)
+  # println(bd)
+  cols = ["index"] ; append!(cols, filter([:banco_id] => x -> x == b1_id, df_cols).col)
+  # print(cols)
+  leftjoin!(rel, DataFrames.select(df1, cols), on= :id1 => :index)
+  subs = Dict{String,String}()
+  for row in eachrow(filter([:banco_id] => x -> x == b1_id, df_cols))
+    row.col != row.var_rel && (subs[row.col] = row.var_rel)
+  end
+  # println(subs)
+  DataFrames.rename!(rel, subs)
+  # show(rel)
+
+  # print("foi")
+
+  df1 = carregar_csv("b2")
+  show(df1)
+  println(b2_id)
+  show(df_cols)
+  cols = ["index"] ; append!(cols, filter([:banco_id] => x -> x == b2_id, df_cols).col)
+  println(cols)
+  leftjoin!(rel, DataFrames.select(df1, cols), on= :id2 => :index)
+  subs = Dict{String,String}()
+  # show(rel)
+  for row in eachrow(filter([:banco_id] => x -> x == b2_id, df_cols))
+    subs[row.col] = row.var_rel
+  end
+  rename!(rel, subs)
+
+  # show(DataFrames.select(rel,df_cols.var_rel))
+  Local = joinpath("data","reports", nome_cruz)
+
+  if isdir(Local) == false
+    try
+      mkpath(Local)
+      @warn "O diretório foi criado"
+    catch
+      @warn "Não possível criar o caminho"
+    end
+  end
+
+  local escrita = false
+
+  try
+    XLSX.writetable(joinpath(Local, "relatório.xlsx"), rel, overwrite=true, sheetname="Relatório Bruto", anchor_cell="A1")
+    escrita = true
+  catch
+    escrita = false
+  end
+  print(escrita)
+
+  dict = Dict{String, Any}()
+  
+  df_pos = get_sql_rel_pos(db, rel_id)
+
+  escrita_a = true
+  if size(df_pos, 1) > 0
+    for row in eachrow(df_pos)
+      escrita_0 = getfield(relatorio, Symbol(row.function))(rel, Local, dict)
+      escrita_a == false && (escrita_a = escrita_0)
+    end
+  end
+ 
+  return escrita, escrita_a
+
+end
 
 
 

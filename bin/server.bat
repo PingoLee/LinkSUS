@@ -1,1 +1,1 @@
-julia --color=yes --depwarn=no --project=@. -q -i -- "%~dp0..\bootstrap.jl" -s=true %*
+julia --color=yes --depwarn=no --sysimage=copilation\sysimg.so --project=@. -q -i -- "%~dp0..\bootstrap.jl" -s=true %*

@@ -43,6 +43,14 @@ const col_cz_def = [
   Dict("name" => "actions", "label" => "Ação", "field" => "", "align" =>"center")
 ]
 
+const col_pos_def = [
+  Dict("name" => "id", "label" => "id", "align" => "left", "field" => "id"), 
+  Dict("name" => "ordem", "label" => "Ordem", "align" => "left", "field" => "ordem"), 
+  Dict("name" => "function", "label" => "Função", "align" => "left", "field" => "function"),  
+  Dict("name" => "definition", "label" => "Definição", "field" => "definition", "align" => "left"),
+  Dict("name" => "actions", "label" => "Ação", "field" => "", "align" =>"center")
+]
+
 # colect sql informations
 function get_bd(loc,rel)
   local sql = """
@@ -138,6 +146,15 @@ function get_crz()
   return c
 end
 
+function get_pos(loc)
+  local df = DBInterface.execute(db, "select * from rel_pos where rel_id=$loc") |> DataFrame  
+  local c = [] 
+  for item in eachrow(df)   
+      push!(c, Dict(pairs(NamedTuple(item))))  
+  end  
+  return c
+end
+
 function get_crz_dict(loc)
   local sql = """
     select 
@@ -172,6 +189,10 @@ end
   col_cz_imp::R{Vector} = []; col_cz_def::R{Vector} = col_cz_def;  col_cz_filter::R{String} = ""; vis_cols_cz::R{Vector} = ["ordem", "var_org", "var_rel", "bd", "actions"]
   show_cz::R{Bool} = false; cz_row::R{Dict} = Dict(); insert_cz_bt::R{Bool} = false; del_cz_bt::R{Bool} = false
   rel_edit_row::R{Dict} = Dict(); save_row_bt::R{Bool} = false; up_row_bt::R{Bool} = false; down_row_bt::R{Bool} = false
+
+  # tables pos-processing
+  data_pos::R{Vector} = []; col_pos_def::R{Vector} = col_pos_def; vis_cols_pos::R{Vector} = ["ordem", "function", "definition", "actions"]
+  show_pos::R{Bool} = false; pos_edit_row::R{Dict} = Dict(); pos_edit_bt::R{Bool} = false; pos_del_bt::R{Bool} = false
 end
 
 # Stipple.js_mounted(::Config_rel) = watchplots()
@@ -271,19 +292,44 @@ Stipple.js_methods(m::Config_rel) = raw"""
   edit_def_rel() {
     this.edit_rel_bt = true;
     this.show_rel = true;
-  }  
+  },
+  add_pos_col() {   
+    if (this.selrel == null){
+      var qsr = this.$q; 
+      notif = qsr.notify({
+        color: 'red',     
+        icon: 'announcement',
+        message: 'Escolha um banco primeiro',
+        position:'center'
+      });
+    } else {
+      this.pos_edit_row = {"id": 0, "function":"", "definition":""};
+      this.show_pos = true;
+    }    
+  },
+  edit_pos_col(props) {     
+    this.pos_edit_row = Object.assign({}, props.row);   
+    //console.log(this.pos_edit_row);
+    this.show_pos = true;
+  },
+  del_pos_col(props) {     
+    this.pos_edit_row = Object.assign({}, props.row);   
+    this.pos_del_bt = true;
+  }
   
   """
 
 function handlers(model::Config_rel)  
   on(model.selcrz) do selcrz
     model.list_rel[] = get_rel(selcrz) 
+    # println(model.list_rel[])
     model.dict_crz[] = get_crz_dict(selcrz)
-    size(model.list_rel[], 1) == 0 ? model.selrel[] = "" :  model.selrel[] = 1
+    size(model.list_rel[], 1) == 0 ? (model.selrel[] = ""; model.data_pos[] = []) :  model.selrel[] = model.list_rel[][1][:id]
     println(model.dict_crz[])
   end
 
   on(model.selrel) do selrel      
+    print("foi")
     if selrel != ""
       df = DBInterface.execute(db, "select id, nome, obs from opc_cruz_rel where id=$(selrel)") |> DataFrame
       println(df)
@@ -295,6 +341,7 @@ function handlers(model::Config_rel)
         model.col_b2_imp[] = get_bd(model.dict_crz[][:b2_id], model.selrel[])
 
         model.col_cz_imp[] = get_rel_cols(selrel)  
+        model.data_pos[] = get_pos(selrel)
       end
 
     else
@@ -442,6 +489,45 @@ function handlers(model::Config_rel)
       model.col_cz_imp[] = get_rel_cols(model.selrel[])
     end
 
+  end
+
+  onbutton(model.pos_edit_bt) do 
+    println(model.pos_edit_row[])
+    ordem = size(model.data_pos[], 1)+1
+    println(ordem)
+    if model.pos_edit_row[]["id"] != 0
+      sql = """update rel_pos set
+              function = '$(model.pos_edit_row[]["function"])',              
+              definition = '$(model.pos_edit_row[]["definition"])'
+            WHERE id = $(model.pos_edit_row[]["id"]) and rel_id = $(model.selrel[]);"""    
+    else
+      sql = """
+          INSERT INTO rel_pos 
+          (ordem,function,definition,rel_id)
+          values
+          ($ordem, '$(model.pos_edit_row[]["function"])', '$(model.pos_edit_row[]["definition"])', $(model.selrel[]))"""
+    end
+
+    # println(sql)
+    DBInterface.execute(db, sql)
+
+    model.data_pos[] = get_pos(model.selrel[])
+    
+  end
+
+  onbutton(model.pos_del_bt) do 
+    println(model.pos_edit_row[])
+    
+    sql = """
+      DELETE FROM rel_pos 
+      WHERE id = $(model.pos_edit_row[]["id"]) and rel_id = $(model.selrel[]);"""
+  
+    #println(sql)
+    DBInterface.execute(db, sql)
+
+    #println(model.bdsel[])
+    model.data_pos[] = get_pos(model.selrel[])
+    
   end
 
   model

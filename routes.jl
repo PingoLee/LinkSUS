@@ -36,18 +36,17 @@ route("/rel_nsus_covid_pos", method = POST) do
   return Pag_ini.processa_notificasus()
 end
 
-route("/api/logout", method = GET) do  
-  exit()
-end
-
 # CONFIGURAÇÃO
 Page("/config", view = "views/config.jl.html",
   layout = "layouts/app.jl.html",
   model = () -> init_from_storage(Config, debounce = 30) |> Pag_config.handlers,
   context = @__MODULE__)
 
-
 Page("/config_rel", view = "views/config_rel.jl.html",
   layout = "layouts/app.jl.html",
   model = () -> init_from_storage(Config_rel, debounce = 30) |> Pag_config_rel.handlers,
   context = @__MODULE__)
+
+route("/api/logout", method = GET) do  
+  exit()
+end
