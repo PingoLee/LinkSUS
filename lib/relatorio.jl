@@ -164,8 +164,8 @@ function Real_Avan_Covid(df_o, Local, dict::Dict{String, Any})
 
 end
 
+"Gera o relatório de arboviroses"
 function rlt_gal_arbo(df_o, Local, dict::Dict{String, Any})
-
   # println(Local)
   insertcols!(df_o, :"Dif Dias 1ºS" => 0)
   insertcols!(df_o, :"Dif Dias Not" => 0)
@@ -179,7 +179,7 @@ function rlt_gal_arbo(df_o, Local, dict::Dict{String, Any})
     elseif row["Exame"] == "Dengue, IgM"
       row["Exame"] = "Exame Sorológico (IgM) Dengue"
     elseif row["Exame"] == "Dengue, Biologia Molecular"
-      row["Exame"] = "RT-PCR"
+      row["Exame"] = "Dengue, RT-PCR"
     elseif row["Exame"] == "Dengue, NS1"
       row["Exame"] = "NS1"
     elseif contains(row["Exame"], "Chikungunya, Teste R*")
@@ -187,18 +187,21 @@ function rlt_gal_arbo(df_o, Local, dict::Dict{String, Any})
     elseif row["Exame"] == "Chikungunya, IgM"
       row["Exame"] = "Exame Sorológico (IgM) Chikungunya"
     elseif row["Exame"] == "Chikungunya, Biologia Molecular"
-      row["Exame"] = "RT-PCR"
+      row["Exame"] = "Chikungunya, RT-PCR"
+    elseif row["Exame"] == "Zika, IgM"
+      row["Exame"] = "Exame Sorológico (IgM) Zika"
+    elseif row["Exame"] == "Zika, Biologia Molecular"
+        row["Exame"] = "Zika, RT-PCR"
+    elseif contains(row["Exame"], "Teste R") && contains(row["Exame"], "Zika")
+      row["Exame"] = "Exame Sorológico (IgM) ZikaR"
     end
 
 
   end
 
-  select!(df_o, Not([:id1, :id2]))
-  
-
   local escrita = false
   try
-    XLSX.writetable(joinpath(Local, "relatório boletim.xlsx"), overwrite=true, df_o)
+    XLSX.writetable(joinpath(Local, "relatório.xlsx"), overwrite=true, df_o)
     escrita = true
   catch
     escrita = false

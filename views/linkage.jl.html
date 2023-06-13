@@ -258,25 +258,36 @@
 <div v-show="modo_rev == false && linkado" class="q-pa-md">
   <q-card flat bordered class="my-card">
     <q-card-section>
-      <div class="text-h6">Relatório</div>
+      <div class="text-h6">Relatório: {{textrel}}</div>
     </q-card-section>
       
     <q-card-section class="q-pt-none">
-      <div class="q-pa-md q-gutter-sm">
-        <div class="row">
-          <q-select class="col" filled v-model="selrel" :options="list_rel" label="Relatório" map-options emit-value
-            option-label="nome" option-value="id" >          
-          </q-select>
-
-          <q-input class="col-2" disable v-model="textrel" label="Dados do cruzamento"/>
-        </div>
-      </div>
       
+        <div class="row q-gutter-lg">
+          <div class="col"> 
+            
+              <q-select class="col" filled v-model="selrel" :options="list_rel" label="Relatório" map-options emit-value
+                option-label="nome" option-value="id" >          
+              </q-select>              
+        
+          </div>
+
+          <div v-show='list_rel_avan.length && rel_avan' class="col-4"> 
+            <q-select filled v-model="selrel_avan" :options="list_rel_avan" label="Escolha quais bancos cruzar" map-options emit-value
+            option-label="nome" option-value="id" >
+              <template v-slot:after>
+                <q-btn dense round v-on:click="rel_bt_avan = true" color="primary" icon="directions" :loading="isprocessing" :readonly="isprocessing"/>
+               
+              </template>
+            </q-select>   
+          </div>     
+        </div>
+
     </q-card-section>      
   </q-card>
 </div>
 
-<div v-show="modo_rev == false && linkado" class="q-pa-md">
+<div v-show="modo_rev == false && linkado && cruzamento == 3" class="q-pa-md">
   <q-form class="row q-gutter-xs" method="POST" action="/rel_nsus_covid_pos" v-on:submit='rel_nsus_covid_pos_Submit'>
     <div class="col">
       <q-card flat bordered class="my-card">
@@ -291,7 +302,7 @@
                   <q-btn round dense flat color="primary"  icon="send" label="Gerar" type="submit" :loading="isprocessing" :readonly="isprocessing" />                
               </q-file>    
               <q-input v-show="false" filled v-model="cruzamento" label="Escolha quais bancos cruzar" map-options emit-value name="cruzamento" />
-            </div>            
+            </div>                   
           </div>
         </q-card-section>      
       </q-card>      

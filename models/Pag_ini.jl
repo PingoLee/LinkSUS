@@ -14,7 +14,7 @@ using .importadores
 include("../lib/linkage_f.jl")
 using .linkage_f
 include("../lib/relatorio.jl")
-includet("../lib/relatorio.jl")
+#includet("../lib/relatorio.jl")
 using .relatorio
 
 
@@ -31,17 +31,7 @@ freq_pnm.pnm = map(x -> string(x), freq_pnm.pnm)
 freq_unm = DataFrame(CSV.File(open(read, joinpath("data", "linksus", "freq", "freq_unm.csv"))))
 freq_unm.unm = map(x -> string(x), freq_unm.unm)
 
-
-# carrega as frequencias
-# db = SQLite.DB("C://Users//rafa//.julia//geniebuilder//apps//LinkSUS//data//linksus.db") 
-#using DataFrames
-
-# @mixin(@__MODULE__)
-
 export Importar
-
-# get info 
-
 
 function cruzamentos()
   df = DBInterface.execute(db, "select * from opc_cruzamento") |> DataFrame
@@ -105,6 +95,34 @@ function get_rel(loc)
   return c
 end
 
+"Pega lista de relatórios avançados"
+function get_avan(loc) 
+  local c = [] 
+  if ~ismissing(loc)
+    local df = DBInterface.execute(db, "select * from rel_avan where rel_id=$loc") |> DataFrame  
+    for item in eachrow(df)   
+        push!(c, Dict(pairs(NamedTuple(item))))  
+    end  
+  end
+  return c
+end
+
+"Pega o dicionário do relatório avançados"
+function get_avan_dict(loc)
+  local sql = """
+    select 
+      *
+     from rel_avan as tb      
+     where tb.id=$loc"""
+
+  local df = DBInterface.execute(db, sql) |> DataFrame  
+  if size(df, 1) == 0
+    return Dict()
+  else
+    return Dict(pairs(NamedTuple(df[1, :])))
+  end
+end
+
 function set_st_import_bd(nu::Union{Missing,String};tipo="importar")
   if ismissing(nu) || length.(nu) > 15
     return ""
@@ -147,12 +165,15 @@ println(bd)
   cor_rev::R{Dict} = Dict() ; par_rev::R{String} = "-"; rev_unlock::R{Bool} = false
 
   # variaveis relatório
-  rel_avan::R{Bool} = false; rel_avan_op::R{Vector} = []; list_rel::R{Vector} = get_rel(bd[:selrel]); selrel::R{Any} = bd[:selrel]
-  rel_bt_pad::R{Bool} = false; rel_bt_avan::R{Bool} = false
-  textrel::R{String} = set_st_import_bd(bd[:rel_n]; tipo="rel")
+  list_rel::R{Vector} = get_rel(bd[:selrel]); selrel::R{Any} = bd[:selrel]
+  rel_bt_pad::R{Bool} = false; textrel::R{String} = set_st_import_bd(bd[:rel_n]; tipo="rel")
 
-  # relatório plus
-  textext::R{String} = "Clique para carregar o arquivo"; client_file_ext = missing
+  # relatório avançado
+  rel_avan::R{Bool} = false; list_rel_avan::R{Vector} = get_avan(bd[:selrel]); selrel_avan::R{Any} = missing
+  rel_bt_avan::R{Bool} = false
+
+  # relatório custon covid
+  textext::R{String} = "Clique para carregar o arquivo"; client_file_ext = missing; rel_avan_bt::R{Bool} = false
 
 end
 
@@ -393,6 +414,11 @@ function handlers(model::Importar)
     model.bd[] = get_st_crz(1)
   end 
 
+  on(model.selrel) do selrel  
+    model.selrel_avan[] = missing
+    model.list_rel_avan[] = get_avan(selrel)    
+  end 
+
   onany(model.par_rev, model.rev_unlock) do par_rev, rev_unlock 
     print(rev_unlock)
     if rev_unlock      
@@ -420,7 +446,7 @@ function handlers(model::Importar)
   end
 
   onany(model.row_rev, model.max_rev) do row_rev, max_rev
-    #print(model.row_rev)
+    print(model.row_rev)
     cor_rev = Dict("n" => "green", "nm" => "green", "dn" => "green", "sx" => "green", "ibge" => "green")  
     if max_rev != 0 && row_rev >= 1 && row_rev <= max_rev    
       dict_form = revisa_row(row_rev)
@@ -452,7 +478,7 @@ function handlers(model::Importar)
     if ismissing(model.selrel[]) 
       model.msg[] = """Favor escolher um relatório antes de gerar relatório"""
     else
-      escrita, escrita_a = gerar_relatorio(db, model.cruzamento[], model.bd[:b1_id],  model.bd[:b2_id], model.bd[][:nome])    
+      escrita, escrita_a = gerar_relatorio(db, model.selrel[], model.bd[:b1_id],  model.bd[:b2_id], model.bd[][:nome])    
 
       print("foi")
       
@@ -472,6 +498,7 @@ function handlers(model::Importar)
     end
 
     model.alert[] = true
+    model.rel_avan[] = true
     model.isprocessing[] = 0
 
   end
@@ -498,9 +525,18 @@ function handlers(model::Importar)
     model.list_rel[] = get_rel(model.cruzamento[])    
   end
 
-  # on(model.selrel) do 
-    
-  # end
+  onbutton(model.rel_bt_avan) do
+    model.isprocessing[] = 1
+
+    rel_avan = get_avan_dict(model.selrel_avan[])
+    getfield(Pag_ini, Symbol(rel_avan[:function]))(rel_avan, get_st_crz(1))
+
+    model.msg[] = """Relatório avançado gerado com sucesso"""
+    model.alert[] = true
+        
+    model.isprocessing[] = 0
+  end
+   
   model
 end
 
@@ -830,7 +866,7 @@ function valida_bancos(db::SQLite.DB, df1::DataFrame, b1::DataFrameRow, resp::Di
 
 end
 
-# Cruzamento
+"Efetua o cruzameto deterministico"
 function linkage_det()
   inicio = now()
   resp = Dict()
@@ -839,11 +875,14 @@ function linkage_det()
   md = Base.invokelatest(Importar)
   println(md.cruzamento[])
   global bd = get_st_crz(1)
+  
 
   df = block_sql_mult(10, bd[:b1_n]) 
   insertcols!(df, 1, :id => axes(df,1))
 
   #insertcols!(df, 1, :id => axes(df,1))
+
+  show(df)
 
   #  #println(filter([:id2] => x -> x == 10329, df))
   println(Dates.format(convert(DateTime, now() - inicio), "MM:SS"))
@@ -895,7 +934,7 @@ function linkage_det()
   leftjoin!(dff, b2, on=:id2)
   insertcols!(dff, 2, :dt_flag => "")
 
-  #show(dff)
+  show(dff)
   #println(DataFrames.filter([:sn1] => x -> ~ismissing(x) && x == "", dff))
   
   for row in eachrow(dff)    
@@ -939,16 +978,11 @@ function linkage_det()
   
 
     # checa diferença nas datas
-    if ~ismissing(row.dn1) && ~ismissing(row.dn2)
-      dn1 = split(row.dn1, "-")
-      dn2 = split(row.dn2, "-")
-      dr1 = split(row.dr1, "-")
-      dr2 = split(row.dr2, "-")
-      
-      if dn1[1] != dn2[1] && ~(row.abrev in ["RN1", "RN2"]) && (dn1[1] == dr1[1] || dn2[1] == dr2[1])
+    if ~ismissing(row.dn1) && ~ismissing(row.dn2)      
+      if year(row.dn1) != year(row.dn2) && ~(row.abrev in ["RN1", "RN2"]) && (year(row.dn1) == year(row.dr1) || year(row.dn2) == year(row.dr2))
         if row.dn1 == row.dr1 || row.dn2 == row.dr2
           row.dt_flag = "DTigREG"
-        elseif dn1[2] == dr1[2] || dn2[2] == dr2[2]
+        elseif month(row.dn1) == month(row.dr1) || month(row.dn2) == month(row.dr2)
           row.dt_flag = "DTigREG1"
         else
           row.dt_flag = "DTigREG2"
@@ -1178,7 +1212,8 @@ function linkage_det()
   filter!([:regra] => x -> x != "" && first(x, 1) != "S", df)
   insertcols!(df, 2, :par_rev => "-")
 
-  df.id = axes(df, 1)
+  unique!(df)
+  df.id = axes(df, 1) 
 
   # carrega todos os dados
   DBInterface.execute(db, "DELETE FROM list_cruz")
@@ -1299,6 +1334,8 @@ end
 # Relatórios
 "Constrói o df com o relatório"
 function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
+  println(rel_id)
+
   sql = """
     select
       tb.ordem,
@@ -1315,7 +1352,7 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
   """
   df_cols = DBInterface.execute(db, sql) |> DataFrame
 
-  # show(df_cols)
+  show(df_cols)
 
   sql = """
     select
@@ -1336,11 +1373,12 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
   cols = ["index"] ; append!(cols, filter([:banco_id] => x -> x == b1_id, df_cols).col)
   # print(cols)
   leftjoin!(rel, DataFrames.select(df1, cols), on= :id1 => :index)
+  show(rel)
   subs = Dict{String,String}()
   for row in eachrow(filter([:banco_id] => x -> x == b1_id, df_cols))
     row.col != row.var_rel && (subs[row.col] = row.var_rel)
   end
-  # println(subs)
+  println(subs)
   DataFrames.rename!(rel, subs)
   # show(rel)
 
@@ -1358,7 +1396,9 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
   for row in eachrow(filter([:banco_id] => x -> x == b2_id, df_cols))
     subs[row.col] = row.var_rel
   end
+
   rename!(rel, subs)
+  unique!(rel)
 
   # show(DataFrames.select(rel,df_cols.var_rel))
   Local = joinpath("data","reports", nome_cruz)
@@ -1375,12 +1415,15 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
   local escrita = false
 
   try
-    XLSX.writetable(joinpath(Local, "relatório.xlsx"), rel, overwrite=true, sheetname="Relatório Bruto", anchor_cell="A1")
+    XLSX.writetable(joinpath(Local, "relatório bruto.xlsx"), rel, overwrite=true, sheetname="Relatório Bruto", anchor_cell="A1")
     escrita = true
   catch
     escrita = false
   end
-  print(escrita)
+
+  # println(df_cols.var_rel)
+
+  select!(rel, df_cols.var_rel)
 
   dict = Dict{String, Any}()
   
@@ -1398,7 +1441,122 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
 
 end
 
+"Relatório que encontra os registros que não foram notificados dos três exames"
+function rel_avan_dc_n_notif(rel_avan, cruz)
+  
+  Local = joinpath("data","reports", cruz[:nome],"relatório.xlsx")
 
+  df1 = carregar_csv("b1")
 
+  df2 = XLSX.readtable(Local, 1) |> DataFrame
+  
+  filter!(["Status Exame", "Resultado"] => (x,y) -> x == "Resultado Liberado" && y == "Detectável", df1)
+
+  df1 = antijoin(df1, df2, on="Requisição")
+
+  select!(df1, ["Requisição", "Data da Coleta", "IBGE Município de Residência", "Paciente", "Exame", "Resultado"])
+
+  Local = joinpath("data","reports", cruz[:nome],"relatório n notif.xlsx")
+
+  XLSX.writetable(Local, overwrite=true, df1)
+
+end
+
+"Algorigmo que encontra os registros que não foram encerrados para os três exames"
+function rel_avan_falta_encer(DiasPCR, DiasIgM, ClassfP, ClassfN, rel_avan, cruz, agravo)
+  
+  Local = joinpath("data","reports", cruz[:nome],"relatório.xlsx")
+
+  df1 = XLSX.readtable(Local, 1) |> DataFrame
+
+  filter!(["Dif Dias 1ºS", "Critério"] => (x,y) -> -6 < x < 91 && (ismissing(y) || y != 1), df1)
+  show(names(df1))
+  
+  select!(df1, ["Notificação", "Dt_Not", "Nome", "Requisição", "Exame", "Dt_Coleta", "Resultado", "Classificação", "Critério", "Dif Dias 1ºS", "Dif Dias Not"])
+  insertcols!(df1, 1, :check => false)
+
+  for row in eachrow(df1)
+    if row["Dif Dias 1ºS"] < DiasPCR && contains(row["Exame"], "PCR")
+      if row["Resultado"] == "Detectável"
+        row.check = true
+        row["Classificação"] = ClassfP
+        row["Critério"] = 1
+      elseif row["Resultado"] == "Não Detectável" && (ismissing(row["Classificação"]) ||  (row["Classificação"] != 11 && row["Classificação"] != 12))
+        row.check = true
+        row["Classificação"] = ClassfN
+        row["Critério"] = 1
+      end     
+    elseif contains(row["Exame"], "IgM") && ( row["Dif Dias 1ºS"] > DiasIgM || row["Resultado"] == "Reagente" )
+      if row["Resultado"] == "Reagente"
+        row.check = true
+        row["Classificação"] = ClassfP
+        row["Critério"] = 1
+      elseif row["Resultado"] == "Não Reagente" && (ismissing(row["Classificação"]) ||  (row["Classificação"] != 11 && row["Classificação"] != 12))
+        row.check = true
+        row["Classificação"] = ClassfN
+        row["Critério"] = 1
+      end
+    elseif contains(row["Exame"], "NS1") && ( row["Dif Dias 1ºS"] < 15 || row["Resultado"] == "Reagente" )
+      if row["Resultado"] == "Reagente"
+        row.check = true
+        row["Classificação"] = ClassfP
+        row["Critério"] = 1
+      elseif row["Resultado"] == "Não Reagente" && (ismissing(row["Classificação"]) ||  (row["Classificação"] != 11 && row["Classificação"] != 12))
+        row.check = true
+        row["Classificação"] = ClassfN
+        row["Critério"] = 1
+      end
+    
+    end
+  end
+
+  filter!([:check] => x -> x == true, df1)
+
+  select!(df1, Not([:check]))
+  
+  Local = joinpath("data","reports", cruz[:nome],"relatório encer $agravo.xlsx")
+
+  XLSX.writetable(Local, overwrite=true, df1)
+  
+end
+
+"Relatório que filtra os casos que faltam encerrar para dengue"
+function rel_avan_falta_encer_d(rel_avan, cruz)
+  DiasPCR = 7
+  DiasIgM = 3
+  ClassfP = 10
+  ClassfN = 5
+
+  agravo = "dengue"
+
+  rel_avan_falta_encer(DiasPCR, DiasIgM, ClassfP, ClassfN, rel_avan, cruz, agravo)
+  
+end
+
+"Relatório que filtra os casos que faltam encerrar para chikungunya"
+function rel_avan_falta_encer_c(rel_avan, cruz)
+  DiasPCR = 10
+  DiasIgM = 4
+  ClassfP = 13
+  ClassfN = 5
+
+  agravo = "chikungunya"
+
+  rel_avan_falta_encer(DiasPCR, DiasIgM, ClassfP, ClassfN, rel_avan, cruz, agravo)
+  
+end
+
+"Relatório que filtra os casos que faltam encerrar para zika"
+function rel_avan_falta_encer_z(rel_avan, cruz)
+  DiasPCR = 7
+  DiasIgM = 3
+  ClassfP = 10
+  ClassfN = 5
+
+  agravo = "zika"
+
+  rel_avan_falta_encer(DiasPCR, DiasIgM, ClassfP, ClassfN, rel_avan, cruz, agravo)
+  
+end
 
 end # fim do modulo

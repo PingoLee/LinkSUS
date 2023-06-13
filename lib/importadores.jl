@@ -119,23 +119,23 @@ end
 """Formata string em data 01-12-2001 """
 function format_dt(df1::DataFrame, col::String)
     df = DateFormat("d-m-y");
-    return map(x -> ismissing(x) ? missing : string(Date(x,df)) , df1[!, col])    
+    return map(x -> ismissing(x) ? missing : Date(x,df) , df1[!, col])    
 end
 
 """Formata string para data 20011231 """
 function format_dt_sinan(df1::DataFrame, col::String)
     df = DateFormat("yyyymmdd");
-    return map(x -> ismissing(x) ? missing : string(Date(x,df)) , df1[!, col])    
+    return map(x -> ismissing(x) ? missing : Date(x,df) , df1[!, col])    
 end
 
 """Converte data em string """
 function format_dt_string(df1::DataFrame, col::String)    
-    return map(x -> ismissing(x) ? missing : string(x) , df1[!, col])    
+    return map(x -> ismissing(x) ? missing : Date(x) , df1[!, col])    
 end
   
 
 # preprocessamento # formatação de bancos
-export formata_vr_covid, formata_zcd, formata_nsus_covid, formata_arbo
+export formata_vr_covid, formata_zcd, formata_nsus_covid, formata_arbo, formata_nindnet_zika
 
 function formata_vr_covid(df::DataFrame)
     if "Coronavírus SARS-CoV2" in names(df)
@@ -290,6 +290,11 @@ function formata_arbo(df::DataFrame)
         end
     end
     
+end
+
+"""Formata o banco NINDNET para extrair só zika"""
+function formata_nindnet_zika(df::DataFrame)
+    filter!([:ID_AGRAVO] => x -> x == "A928", df)    
 end
 
 # Relatórios

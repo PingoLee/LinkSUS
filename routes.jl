@@ -10,6 +10,7 @@ using LinkSUS.Pag_ini
 using LinkSUS.Pag_config
 using LinkSUS.Pag_config_rel
 
+
 import Genie.Renderer.Html: normal_element, register_normal_element
 register_normal_element("q__td", context = @__MODULE__)
 
@@ -50,3 +51,4 @@ Page("/config_rel", view = "views/config_rel.jl.html",
 route("/api/logout", method = GET) do  
   exit()
 end
+

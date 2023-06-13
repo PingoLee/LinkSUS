@@ -51,6 +51,15 @@ const col_pos_def = [
   Dict("name" => "actions", "label" => "Ação", "field" => "", "align" =>"center")
 ]
 
+const col_avan_def = [
+  Dict("name" => "id", "label" => "id", "align" => "left", "field" => "id"), 
+  Dict("name" => "ordem", "label" => "Ordem", "align" => "left", "field" => "ordem"), 
+  Dict("name" => "nome", "label" => "Nome", "align" => "left", "field" => "nome"), 
+  Dict("name" => "function", "label" => "Função", "align" => "left", "field" => "function"),  
+  Dict("name" => "definition", "label" => "Definição", "field" => "definition", "align" => "left"),
+  Dict("name" => "actions", "label" => "Ação", "field" => "", "align" =>"center")
+]
+
 # colect sql informations
 function get_bd(loc,rel)
   local sql = """
@@ -155,6 +164,16 @@ function get_pos(loc)
   return c
 end
 
+"Pega lista de relatórios avançados"
+function get_avan(loc)
+  local df = DBInterface.execute(db, "select * from rel_avan where rel_id=$loc") |> DataFrame  
+  local c = [] 
+  for item in eachrow(df)   
+      push!(c, Dict(pairs(NamedTuple(item))))  
+  end  
+  return c
+end
+
 function get_crz_dict(loc)
   local sql = """
     select 
@@ -193,6 +212,10 @@ end
   # tables pos-processing
   data_pos::R{Vector} = []; col_pos_def::R{Vector} = col_pos_def; vis_cols_pos::R{Vector} = ["ordem", "function", "definition", "actions"]
   show_pos::R{Bool} = false; pos_edit_row::R{Dict} = Dict(); pos_edit_bt::R{Bool} = false; pos_del_bt::R{Bool} = false
+
+  # tables advanced reports
+  data_avan::R{Vector} = []; col_avan_def::R{Vector} = col_avan_def; vis_cols_avan::R{Vector} = ["ordem", "nome", "function", "definition", "actions"]
+  show_avan::R{Bool} = false; avan_edit_row::R{Dict} = Dict(); avan_edit_bt::R{Bool} = false; avan_del_bt::R{Bool} = false
 end
 
 # Stipple.js_mounted(::Config_rel) = watchplots()
@@ -315,6 +338,29 @@ Stipple.js_methods(m::Config_rel) = raw"""
   del_pos_col(props) {     
     this.pos_edit_row = Object.assign({}, props.row);   
     this.pos_del_bt = true;
+  },
+  add_avan_col() {   
+    if (this.selrel == null){
+      var qsr = this.$q; 
+      notif = qsr.notify({
+        color: 'red',     
+        icon: 'announcement',
+        message: 'Escolha um banco primeiro',
+        position:'center'
+      });
+    } else {
+      this.avan_edit_row = {"id": 0, "function":"", "definition":""};
+      this.show_avan = true;
+    }    
+  },
+  edit_avan_col(props) {     
+    this.avan_edit_row = Object.assign({}, props.row);   
+    //console.log(this.avan_edit_row);
+    this.show_avan = true;
+  },
+  del_avan_col(props) {     
+    this.avan_edit_row = Object.assign({}, props.row);   
+    this.avan_del_bt = true;
   }
   
   """
@@ -342,6 +388,7 @@ function handlers(model::Config_rel)
 
         model.col_cz_imp[] = get_rel_cols(selrel)  
         model.data_pos[] = get_pos(selrel)
+        model.data_avan[] = get_avan(selrel)
       end
 
     else
@@ -349,6 +396,7 @@ function handlers(model::Config_rel)
       model.col_b1_imp[] = []
       model.col_b2_imp[] = []
       model.col_cz_imp[] = []
+      model.data_avan[] = []
     end  
     
   end
@@ -527,6 +575,46 @@ function handlers(model::Config_rel)
 
     #println(model.bdsel[])
     model.data_pos[] = get_pos(model.selrel[])
+    
+  end
+
+  onbutton(model.avan_edit_bt) do 
+    println(model.avan_edit_row[])
+    ordem = size(model.data_avan[], 1)+1
+    println(ordem)
+    if model.avan_edit_row[]["id"] != 0
+      sql = """update rel_avan set
+              nome = '$(model.avan_edit_row[]["nome"])',
+              function = '$(model.avan_edit_row[]["function"])',              
+              definition = '$(model.avan_edit_row[]["definition"])'
+            WHERE id = $(model.avan_edit_row[]["id"]) and rel_id = $(model.selrel[]);"""    
+    else
+      sql = """
+          INSERT INTO rel_avan 
+          (ordem,nome,function,definition,rel_id)
+          values
+          ($ordem, '$(model.avan_edit_row[]["nome"])', '$(model.avan_edit_row[]["function"])', '$(model.avan_edit_row[]["definition"])', $(model.selrel[]))"""
+    end
+
+    println(sql)
+    DBInterface.execute(db, sql)
+
+    model.data_avan[] = get_avan(model.selrel[])
+    
+  end
+
+  onbutton(model.avan_del_bt) do 
+    println(model.avan_edit_row[])
+    
+    sql = """
+      DELETE FROM rel_avan 
+      WHERE id = $(model.avan_edit_row[]["id"]) and rel_id = $(model.selrel[]);"""
+  
+    #println(sql)
+    DBInterface.execute(db, sql)
+
+    #println(model.bdsel[])
+    model.data_avan[] = get_avan(model.selrel[])
     
   end
 

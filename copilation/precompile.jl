@@ -42,6 +42,7 @@ try
   #TODO: Ask adrian if I should filter /geniepackagemanager/* /stippleui/* /_devtools_/* tobe hit by HTTP
   for rt in rts
     @time HTTP.request("GET", "http://localhost:$PORT" * rt.path)
+    @time HTTP.request("POST", "http://localhost:$PORT" * rt.path)
   end
 catch
 end
