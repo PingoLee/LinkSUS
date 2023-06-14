@@ -560,8 +560,15 @@ function receb_arquivos()
   println(post)
   # println(files)
 
-  # println(post[:cruzamento])    
-  b1, b2 = get_sql_bancos_defs(db, post[:cruzamento])
+  # println(post[:cruzamento])
+  b1 = nothing; b2 = nothing
+  try
+    b1, b2 = get_sql_bancos_defs(db, post[:cruzamento])
+  catch
+    resp["cor"] = "negative"
+    resp["msg"] = "O cruzamento de dados não foi escolhido" 
+    return Json.json(resp)
+  end
 
   fs = []
   # println(Symbol(b1.file))
@@ -1334,6 +1341,7 @@ end
 # Relatórios
 "Constrói o df com o relatório"
 function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
+  dict = Dict{String, Any}()
   println(rel_id)
 
   sql = """
@@ -1368,6 +1376,7 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
   # show(rel)
 
   df1 = carregar_csv("b1")  
+  dict["df_b1"] = df1
   # show(df1)
   # println(bd)
   cols = ["index"] ; append!(cols, filter([:banco_id] => x -> x == b1_id, df_cols).col)
@@ -1385,11 +1394,12 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
   # print("foi")
 
   df1 = carregar_csv("b2")
+  dict["df_b2"] = df1
   show(df1)
-  println(b2_id)
-  show(df_cols)
+  # println(b2_id)
+  # show(df_cols)
   cols = ["index"] ; append!(cols, filter([:banco_id] => x -> x == b2_id, df_cols).col)
-  println(cols)
+  # println(cols)
   leftjoin!(rel, DataFrames.select(df1, cols), on= :id2 => :index)
   subs = Dict{String,String}()
   # show(rel)
@@ -1414,19 +1424,7 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
 
   local escrita = false
 
-  try
-    XLSX.writetable(joinpath(Local, "relatório bruto.xlsx"), rel, overwrite=true, sheetname="Relatório Bruto", anchor_cell="A1")
-    escrita = true
-  catch
-    escrita = false
-  end
-
-  # println(df_cols.var_rel)
-
-  select!(rel, df_cols.var_rel)
-
-  dict = Dict{String, Any}()
-  
+  # println(df_cols.var_rel)  
   df_pos = get_sql_rel_pos(db, rel_id)
 
   escrita_a = true
@@ -1435,6 +1433,16 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
       escrita_0 = getfield(relatorio, Symbol(row.function))(rel, Local, dict)
       escrita_a == false && (escrita_a = escrita_0)
     end
+  end
+
+  
+  select!(rel, df_cols.var_rel)
+
+  try
+    XLSX.writetable(joinpath(Local, "relatório bruto.xlsx"), rel, overwrite=true, sheetname="Relatório Bruto", anchor_cell="A1")
+    escrita = true
+  catch
+    escrita = false
   end
  
   return escrita, escrita_a

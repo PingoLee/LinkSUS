@@ -21,14 +21,15 @@ function Real_Avan_Covid(df_o, Local, dict::Dict{String, Any})
   # carrega mota realtório de positivas  
   println("Foi pra outra função")
 
-  df_1 = dict["df_1"]
+  df_b1 = dict["df_b1"]
 
-  show(df_o)
+  # df_o.Resultado = convert(Vector{Union{Missing,String, Nothing}}, df_o.Resultado)
+  # show(DataFrames.select(df_o, [:Municipio2, :Resultado]))
 
   df = filter([:Municipio2, :Resultado] => (x, y) -> ~ismissing(x) && x == 172100 && ~ismissing(y) && y == "Detectável", df_o)
   rel_p = DataFrames.select(df, :id1)
 
-  string("Foi")
+  # println("Foi")
 
   insertcols!(rel_p, :n => "")
   insertcols!(rel_p, :criterio => "C.L.")
@@ -61,9 +62,9 @@ function Real_Avan_Covid(df_o, Local, dict::Dict{String, Any})
 
   rel_p0 = DataFrames.select(rel_p, Not(:id1))
 
-  # show(rel_p)
+  show(rel_p)
 
-  df = filter([:Municipio2, :Resultado] => (x, y) -> x == 172100 && y != "Detectável", df_o)
+  df = filter([:Municipio2, :Resultado] => (x, y) -> ~ismissing(x) && x == 172100 && ~ismissing(y) && y == "Detectável", df_o)
   rel_n = DataFrames.select(df, :id1)
 
   insertcols!(rel_n, :n => "")
@@ -81,7 +82,7 @@ function Real_Avan_Covid(df_o, Local, dict::Dict{String, Any})
 
   DataFrames.select!(rel_n, Not(:id1))
 
-  # show(rel_n)
+  show(rel_n)
   rel_n0 = copy(rel_n)
 
   # procura os outros municípios

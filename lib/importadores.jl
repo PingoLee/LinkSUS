@@ -93,7 +93,7 @@ end
 
 
 # formatação de coluna
-export format_sx, format_sx_1m, format_dt, format_dt_sinan, format_sx_nsus, format_dt_string, format_dbf_string
+export format_sx, format_sx_1m, format_dt_br, format_dt_sinan, format_sx_nsus, format_dt_string, format_dbf_string
 
 """Formata os strings do banco de dados DBF"""
 function format_dbf_string(df1::DataFrame, col::String)
@@ -117,7 +117,7 @@ end
 
 
 """Formata string em data 01-12-2001 """
-function format_dt(df1::DataFrame, col::String)
+function format_dt_br(df1::DataFrame, col::String)
     df = DateFormat("d-m-y");
     return map(x -> ismissing(x) ? missing : Date(x,df) , df1[!, col])    
 end
