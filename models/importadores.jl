@@ -1,7 +1,8 @@
 module importadores
 
-using DataFrames, CSV, DBFTables, XLSX, SQLite
+using DataFrames, CSV, DBFTables, XLSX
 using StringEncodings, Dates
+import LinkSUS.SearchLight: query
 
 export get_csv_gal, get_dbf
 # coleções de funções para importar arquivos
@@ -20,22 +21,22 @@ end
 export get_sql_bancos_defs, get_sql_bancos_cols, get_sql_bancos_subs, get_sql_bancos_prep, get_sql_rel_pos
 
 """importa o dict dos bancos (b1 e b2)"""
-function get_sql_bancos_defs(db::SQLite.DB, crz::String)
-    df1 = DBInterface.execute(db, 
+function get_sql_bancos_defs(crz::String)
+    df1 = query( 
         """select 
                 tb.nome, bd.*
             from opc_cruzamento as tb 
                 inner join bancos as bd on bd.id = tb.b1_id 
 
-            where tb.id='$crz'""") |> DataFrame 
+            where tb.id='$crz'""") 
 
-    df2 = DBInterface.execute(db, 
+    df2 = query( 
         """select 
                 tb.nome, bd.*
             from opc_cruzamento as tb 
                 inner join bancos as bd on bd.id = tb.b2_id 
 
-            where tb.id='$crz'""") |> DataFrame 
+            where tb.id='$crz'""") 
 
     insertcols!(df1, 1, :file => "file1_id")
     insertcols!(df2, 1, :file => "file2_id")
@@ -44,49 +45,49 @@ function get_sql_bancos_defs(db::SQLite.DB, crz::String)
 end
 
 """Importa as definições para formatação e checagem das colunas dos bancos de dados"""
-function get_sql_bancos_cols(db::SQLite.DB, banco_id::Int64)::DataFrame
-    df1 = DBInterface.execute(db, 
+function get_sql_bancos_cols(banco_id::Int64)::DataFrame
+    df1 = query(
         """select 
                 *
             from banco_cols as tb                 
 
-            where tb.banco_id='$banco_id'""") |> DataFrame 
+            where tb.banco_id='$banco_id'""")
    
     return df1
 end
 
 """Importa a tabela de substituições para o banco de dados"""
-function get_sql_bancos_subs(db::SQLite.DB, banco_id::Int64)::DataFrame
-    df1 = DBInterface.execute(db, 
+function get_sql_bancos_subs(banco_id::Int64)::DataFrame
+    df1 = query( 
         """select 
                 *
             from banco_subs as tb                 
 
-            where tb.banco_id='$banco_id'""") |> DataFrame 
+            where tb.banco_id='$banco_id'""")
    
     return df1
 end
 
 """Importa a tabela de funções para pré-processar os bancos de dados"""
-function get_sql_bancos_prep(db::SQLite.DB, banco_id::Int64)::DataFrame
-    df1 = DBInterface.execute(db, 
+function get_sql_bancos_prep(banco_id::Int64)::DataFrame
+    df1 = query(
         """select 
                 *
             from banco_prep as tb                 
 
-            where tb.banco_id='$banco_id'""") |> DataFrame 
+            where tb.banco_id='$banco_id'""")
    
     return df1
 end
 
 """Importa a tabela de funções para pos-processar os bancos de dados após gerar o relatório"""
-function get_sql_rel_pos(db::SQLite.DB, rel_id::Int64)::DataFrame
-    df1 = DBInterface.execute(db, 
+function get_sql_rel_pos(rel_id::Int64)::DataFrame
+    df1 = query( 
         """select 
                 *
             from rel_pos as tb                 
 
-            where tb.rel_id='$rel_id'""") |> DataFrame 
+            where tb.rel_id='$rel_id'""")
    
     return df1
 end
@@ -312,6 +313,12 @@ function carregar_csv(bd::String)
   end
   return df
 end
+
+
+
+
+
+
 
 
 end

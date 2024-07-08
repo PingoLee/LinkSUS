@@ -1,0 +1,28 @@
+env: ENV["GENIE_ENV"]
+
+dev:
+  adapter: SQLite
+  database: data/linksus.db
+  host:
+  username:
+  password:
+  port:
+  config:
+
+prod:
+  adapter: SQLite
+  database: data/linksus.db
+  host:
+  username:
+  password:
+  port:
+  config:
+
+test:
+  adapter: SQLite
+  database: data/linksus.db
+  host:
+  username:
+  password:
+  port:
+  config:

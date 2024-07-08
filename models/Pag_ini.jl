@@ -1,42 +1,25 @@
 module Pag_ini
 
-using Stipple, StippleUI
 using Unicode
-using StipplePlotly
 using Genie.Renderer.Json
+using SearchLight
+
 using SQLite, DataFrames, CSV, XLSX
 using StringEncodings, Dates
 using Revise
 
-include("../lib/importadores.jl")
-includet("../lib/importadores.jl")
-using .importadores
-include("../lib/linkage_f.jl")
-using .linkage_f
-include("../lib/relatorio.jl")
-includet("../lib/relatorio.jl")
-using .relatorio
+using LinkSUS.importadores
+using LinkSUS.linkage_f
+using LinkSUS.relatorio
 
-using PrecompileTools
+import LinkSUS.SearchLight: query, connection
+import LinkSUS: Payload
 
+export Importar, cruzamentos
 
-const ALL = "All"
-const db = SQLite.DB(joinpath("data", "linksus.db"))
-freq_pn = DataFrame(CSV.File(open(read, joinpath("data", "linksus", "freq", "freq_pn.csv"))))
-freq_pn.pn = map(x -> string(x), freq_pn.pn)
-freq_sn = DataFrame(CSV.File(open(read, joinpath("data", "linksus", "freq", "freq_sn.csv"))))
-freq_sn.sn = map(x -> string(x), freq_sn.sn)
-freq_un = DataFrame(CSV.File(open(read, joinpath("data", "linksus", "freq", "freq_un.csv"))))
-freq_un.un = map(x -> string(x), freq_un.un)
-freq_pnm = DataFrame(CSV.File(open(read, joinpath("data", "linksus", "freq", "freq_pnm.csv"))))
-freq_pnm.pnm = map(x -> string(x), freq_pnm.pnm)
-freq_unm = DataFrame(CSV.File(open(read, joinpath("data", "linksus", "freq", "freq_unm.csv"))))
-freq_unm.unm = map(x -> string(x), freq_unm.unm)
+function cruzamentos()  
+  df = query("select * from opc_cruzamento")
 
-export Importar
-
-function cruzamentos()
-  df = DBInterface.execute(db, "select * from opc_cruzamento") |> DataFrame
   local c = [] 
   for item in eachrow(df)   
       push!(c, Dict(pairs(NamedTuple(item))))  
@@ -46,19 +29,32 @@ function cruzamentos()
 end
 
 function cruzamento(crz)
-  df = DBInterface.execute(db, "select tb.id, b1.abrev as b1, b2.abrev as b2 from opc_cruzamento as tb inner join bancos as b1 on b1.id = tb.b1_id inner join bancos as b2 on b2.id = tb.b2_id  where tb.id='$crz'") |> DataFrame  
-  return df[1, :]
+  df = query("select tb.id, b1.abrev as b1, b2.abrev as b2 from opc_cruzamento as tb inner join bancos as b1 on b1.id = tb.b1_id inner join bancos as b2 on b2.id = tb.b2_id  where tb.id='$crz'")  
+  loc =  df[1, :]
+  query("""
+  UPDATE st_cruz as tb
+    SET crz_id = $(crz)
+  WHERE tb.id = 1; """) 
+
+
+  resp = Dict(
+    "list_rel" => get_rel(crz),
+    "bd" => get_st_crz(1),
+  )
+
+  return resp
+    
 end
 
 function insert_st_crz_dict(loc)
-  local sql = """
+  query("""
   INSERT INTO st_cruz (id)
-  VALUES ($loc);"""
-  DBInterface.execute(db, sql)    
+  VALUES ($loc);""")
+     
 end
 
 function get_st_crz_dict(loc)
-  local sql = """
+  df = query("""
     select 
       tb.*,
       crz.*,
@@ -68,8 +64,7 @@ function get_st_crz_dict(loc)
       left join bancos as bd1 on bd1.id = crz.b1_id
       left join bancos as bd2 on bd2.id = crz.b2_id
       
-     where tb.id=$loc"""
-  local df = DBInterface.execute(db, sql) |> DataFrame  
+     where tb.id=$loc""")
   if size(df, 1) == 0
     return Dict()
   else
@@ -77,6 +72,7 @@ function get_st_crz_dict(loc)
   end
 end
 
+"get bd dict"
 function get_st_crz(loc)
   bd = get_st_crz_dict(loc)
   if bd == Dict()
@@ -86,10 +82,11 @@ function get_st_crz(loc)
   return bd
 end
 
+"get lista de relatórios"
 function get_rel(loc)  
-  local c = [] 
+  c = [] 
   if ~ismissing(loc)
-    local df = DBInterface.execute(db, "select id, nome from opc_cruz_rel where opc_cruz_id=$loc") |> DataFrame  
+    df = query("select id, nome from opc_cruz_rel where opc_cruz_id=$loc")  
     for item in eachrow(df)   
         push!(c, Dict(pairs(NamedTuple(item))))  
     end  
@@ -101,7 +98,7 @@ end
 function get_avan(loc) 
   local c = [] 
   if ~ismissing(loc)
-    local df = DBInterface.execute(db, "select * from rel_avan where rel_id=$loc") |> DataFrame  
+    local df = query("select * from rel_avan where rel_id=$loc")  
     for item in eachrow(df)   
         push!(c, Dict(pairs(NamedTuple(item))))  
     end  
@@ -111,18 +108,25 @@ end
 
 "Pega o dicionário do relatório avançados"
 function get_avan_dict(loc)
-  local sql = """
+  local df = query("""
     select 
       *
      from rel_avan as tb      
-     where tb.id=$loc"""
-
-  local df = DBInterface.execute(db, sql) |> DataFrame  
+     where tb.id=$loc""")  
   if size(df, 1) == 0
     return Dict()
   else
     return Dict(pairs(NamedTuple(df[1, :])))
   end
+end
+
+function get_load()
+  println("foi")
+  resp = Dict(
+    "cruzamentos" => cruzamentos(),
+    "bd" => get_st_crz(1)
+  )
+  return resp
 end
 
 function set_st_import_bd(nu::Union{Missing,String};tipo="importar")
@@ -137,361 +141,85 @@ function set_st_import_bd(nu::Union{Missing,String};tipo="importar")
   end  
 end
 
-bd = get_st_crz(1)
-println(bd)
-# println(get_rel(bd[:selrel]))
-# println(set_st_import_bd(bd[:b1_n]))
-# println(set_st_import_bd(bd[:rel_n]; tipo="rel"))
 
 
-@old_reactive! mutable struct Importar <: ReactiveModel
-  # Botões
-  limpar_tudo_bt::R{Bool} = false; limpar_crz_bt::R{Bool} = false
-  conclui_rev_bt::R{Bool} = false; update_model_bt::R{Bool} = false
+# function handlers(model::Importar)  
 
-  # Alerta
-  alert::R{Bool} = false; msg::R{String} = ""
 
-  bd::R{Dict} = bd
+#   on(model.selrel) do selrel  
+#     model.selrel_avan[] = missing
+#     model.list_rel_avan[] = get_avan(selrel)    
+#   end 
 
-  # modelo
-  cruzamentos::R{Vector} = cruzamentos(); linkado::R{Bool} = bd[:linkado]
-  cruzamento::R{Any} = bd[:crz_id]; cruzar::R{Int} = 0
-  client_file1 = missing;  client_file2 = missing
-  labelb1::R{String} = "Escolha o tipo de cruzamento"; labelb2::R{String} = "Escolha o tipo de cruzamento" 
-  textb1::R{String} = set_st_import_bd(bd[:b1_n]); textb2::R{String} = set_st_import_bd(bd[:b2_n])
-  importado::R{Bool} = bd[:importado] ; cruzado::R{Bool} = false 
+#   onany(model.par_rev, model.rev_unlock) do par_rev, rev_unlock 
+#     print(rev_unlock)
+#     if rev_unlock      
+#       revisa_row_par(model.row_rev[], par_rev)   
+#     end   
+#   end
 
-  # variaveis da revisão
-  modo_rev::R{Bool} = bd[:modo_rev]; form_rev::R{Dict} = Dict(); row_rev::R{Int} = 0; max_rev::R{Int} = bd[:max_rev]
-  cor_rev::R{Dict} = Dict() ; par_rev::R{String} = "-"; rev_unlock::R{Bool} = false
+"Reset all data"
+function onreset(cruzamento::Int64)
+  query("DELETE FROM b1_proc")
+  query("DELETE FROM b2_proc")   
+  query("DELETE FROM list_cruz")
+  query("DELETE FROM list_cruz_rv")
+  query("DELETE FROM st_cruz where id = 1")  
+  query("""VACUUM "main" """)
+  query("""VACUUM "temp" """)
+  
+  get_st_crz(1)
 
-  # variaveis relatório
-  list_rel::R{Vector} = get_rel(bd[:selrel]); selrel::R{Any} = bd[:selrel]
-  rel_bt_pad::R{Bool} = false; textrel::R{String} = set_st_import_bd(bd[:rel_n]; tipo="rel")
-
-  # relatório avançado
-  rel_avan::R{Bool} = false; list_rel_avan::R{Vector} = get_avan(bd[:selrel]); selrel_avan::R{Any} = missing
-  rel_bt_avan::R{Bool} = false
-
-  # relatório custon covid
-  textext::R{String} = "Clique para carregar o arquivo"; client_file_ext = missing; rel_avan_bt::R{Bool} = false
+  query("""
+  UPDATE st_cruz as tb
+    SET crz_id = $(cruzamento), linkado = 0
+  WHERE tb.id = 1; """)     
+  resp = Dict("list_rel" => get_rel(cruzamento), "bd" => get_st_crz(1))
+  return resp
 
 end
 
+"Revisa os dados que estão sendo checados"
+function change_rev(row_rev::Int64, max_rev::Int64)
+  println(row_rev, max_rev)
+  cor_rev = Dict("n" => "green", "nm" => "green", "dn" => "green", "sx" => "green", "ibge" => "green")  
+  if max_rev != 0 && row_rev >= 1 && row_rev <= max_rev    
+    dict_form = revisa_row(row_rev)
+    println(dict_form)
+    dist_n = jaro(dict_form["nome1"], dict_form["nome2"])
+    dist_n > 98 ? cor_rev["n"] = "green" : dist_n > 82 ? cor_rev["n"] = "yellow-4" : cor_rev["n"] = "red"
+    dist_nm = jaro(dict_form["nm_m1"], dict_form["nm_m2"])
+    ismissing(dist_nm) ? cor_rev["nm"] = "light-blue" : dist_nm > 98 ? cor_rev["nm"] = "green" : dist_nm > 82 ? cor_rev["nm"] = "yellow-4" : cor_rev["nm"] = "red"
+    ismissing(dict_form["distdn"]) ? cor_rev["dn"] = "light-blue" : dict_form["distdn"] > 98 ? cor_rev["dn"] = "green" : dict_form["distdn"] > 82 ? cor_rev["dn"] = "yellow-4" : dict_form["distdn"] > 49 ? cor_rev["dn"] = "orange-7" : cor_rev["dn"] = "red"
+    ismissing(dict_form["sexo1"]) || ismissing(dict_form["sexo2"]) ? cor_rev["sx"] = "light-blue" : dict_form["sexo1"] == dict_form["sexo2"] ? cor_rev["sx"] = "green" : cor_rev["sx"] = "red"
+    ismissing(dict_form["ibge1"]) || ismissing(dict_form["ibge2"]) ? cor_rev["ibge"] = "light-blue" : dict_form["ibge1"] == dict_form["ibge2"] ? cor_rev["ibge"] = "green" : cor_rev["ibge"] = "red"
 
+    return Dict("rev_unlock" => false, "par_rev" => dict_form["par_rev"], "form_rev" => dict_form, "cor_rev" => cor_rev)
 
-Stipple.js_mounted(::Importar) = raw"""  
-  setTimeout(() => {this.update_model_bt = true}, 400);
-  if ((this.row_rev == 0) && (this.conclui_rev_bt == false)) {
-    this.row_rev = 1
-  };
-"""
-
-Stipple.js_watch(app::Importar) = raw"""
-    cruzamento: function (val, oldval) {
-      if ((oldval != "") && ((this.client_file1 != null) || (this.client_file2 != null))){
-        this.$q.notify({
-          color: 'green',
-          textColor: 'yellow-14',
-          icon: 'warning',
-          message: 'Você mudou o metodo de cruzamento, escolha os bancos de acordo com esse método.'
-        })
-      }      
-    },
-    row_rev: function (val, oldval) {
-      //alert(val)
-      if ((val !== null) && (this.max_rev !=0) && (this.row_rev < 1)) {
-        this.row_rev = 1
-      } else  if ((this.max_rev !=0) && (this.row_rev > this.max_rev)) {
-        this.row_rev = this.max_rev
-      }       
-    }        
-  """
-
-Stipple.js_methods(m::Importar) = raw"""
-  rel_nsus_covid_pos_Submit(evt) {       
-    var qsr = this.$q;         
-    var modelo = this;      
-    this.isprocessing = true;
-    this.textext = "Aguarde";
-    if (this.client_file_ext == null) {
-      qsr.notify({
-        color: 'red-5',
-        textColor: 'white',
-        icon: 'warning',
-        message: 'Você precisa escolher o arquivo do COE antes de prosseguir'
-      });      
-      this.isprocessing = false;
-    } else {
-      notif = qsr.notify({
-        type: 'ongoing',     
-        message: 'Enviado, aguarde'
-      });
-      //alert(this.client_file1);
-      
-      const formData = new FormData(evt.target);
-      const data = [];
-
-      axios.post('/rel_nsus_covid_pos',
-        formData,
-        {
-          headers: {
-              'Content-Type': 'multipart/form-data'
-          }
-        }
-      ).then(function(resp){          
-        modelo.isprocessing = false;
-        modelo.textext = "Processamento concluído";
-        modelo.msg = resp.data.msg2;
-        modelo.alert = true;
-        modelo.update_model_bt = true;
-        
-        notif({
-          type: resp.data.cor,   
-          message: resp.data.msg      
-        });     
-
-      })
-      .catch(function(){  
-        notif({
-          type: 'negative',
-          message: 'Algo deu errado'
-        })
-      });
-    
-    }
-  },
-  onSubmit (evt) {     
-    var qsr = this.$q;         
-    var modelo = this;  
-    this.importado = true
-    this.isprocessing = true
-    this.textb1 = "Aguarde"
-    this.textb2 = "Aguarde"
-    if ((this.client_file1 == null) || (this.client_file2 == null)) {
-      qsr.notify({
-        color: 'red-5',
-        textColor: 'white',
-        icon: 'warning',
-        message: 'Você precisa escolher os dois bancos'
-      });
-      this.importado = false;
-      this.isprocessing = false;
-    } else {
-      notif = qsr.notify({
-        type: 'ongoing',     
-        message: 'Enviado, aguarde',
-        position:'center'
-      });
-      //console.log( this.client_file1);
-      //console.log( this.client_file2);
-      //console.log(evt.target);
-      
-      //var formData = new FormData(evt.target);
-      var formData = new FormData();
-      //const data = [];
-
-      var cont = 0
-      var chave = []
-   
-      this.client_file1.forEach(file=>{
-        cont += 1
-        formData.append(`file1_id_${cont}`, file);
-        chave.push(`file1_id_${cont}`)
-      });        
-      
-      formData.append("file1_id", chave);
-    
-      cont = 0
-      chave = []
-      this.client_file2.forEach(file=>{
-        cont += 1
-        formData.append(`file2_id_${cont}`, file);
-        chave.push(`file2_id_${cont}`)
-      });        
-      formData.append("file2_id", chave);
-        
-      formData.append("cruzamento", this.cruzamento);
-      
-      //console.log(formData)
-
-      axios.post('/sub',
-        formData,
-        {
-          headers: {
-              'Content-Type': 'multipart/form-data'
-          }
-        }
-      ).then(function(resp){          
-        modelo.isprocessing = false;
-        modelo.textb1 = resp.data.textb1;
-        modelo.textb2 = resp.data.textb2;
-        modelo.update_model_bt = true;
-
-        notif({
-          type: resp.data.cor,   
-          message: resp.data.msg      
-        });        
-      })
-      .catch(function(){  
-        notif({
-          type: 'negative',
-          message: 'Algo deu errado'
-        })
-      });
-
-      //alert(this.isprocessing)
-    
-    }
-  },
-  onReset () { 
-    this.client_file1 = null;
-    this.client_file2 = null;  
-    this.importado = false;
-    this.isprocessing = false;
-    this.modo_rev = false;
-    this.limpar_tudo_bt = true;
-  },
-  onCruzar () { 
-    var qsr = this.$q;         
-    var modelo = this;  
-    this.max_rev = 0; this.row_rev = 0
-    notif = qsr.notify({
-        type: 'ongoing',     
-        message: 'Enviado, aguarde',
-        position:'center'
-      });
-
-    axios.get('/cruzar'       
-      ).then(function(resp){  
-        //alert(resp.data.max_rev);
-        modelo.row_rev = 1;
-        modelo.max_rev = resp.data.max_rev;
-        modelo.modo_rev = resp.data.modo_rev;
-        modelo.linkado = 1;
-        modelo.textrel = resp.data.textrel;
-        modelo.revisado = resp.data.revisado;     
-        modelo.update_model_bt = true;   
-        notif({
-          type: resp.data.cor,   
-          message: resp.data.msg      
-        });        
-      })
-      .catch(function(){  
-        notif({
-          type: 'negative',
-          message: 'Algo deu errado'
-        })
-      });
-  },
-  onPar () {
-    // é par
-    //alert(this.rev_unlock);
-    this.rev_unlock = true;
-    //alert(this.rev_unlock);
-    this.par_rev = "S";
-    setTimeout(() => {this.row_rev += 1}, 300);
-  },
-  onNPar () {
-      // não é par
-      this.rev_unlock = true;
-      //alert(this.rev_unlock)
-      this.par_rev = "N";
-      setTimeout(() => {this.row_rev += 1}, 300);
-  }
-  """
-
-function handlers(model::Importar)  
-
-  on(model.cruzamento) do crz   
-    loc = cruzamento(crz)
-    sql = """
-    UPDATE st_cruz as tb
-      SET crz_id = $(crz)
-    WHERE tb.id = 1; """
-    DBInterface.execute(db, sql) 
-
-    model.list_rel[] = get_rel(crz)
-    model.bd[] = get_st_crz(1)
-  end 
-
-  on(model.selrel) do selrel  
-    model.selrel_avan[] = missing
-    model.list_rel_avan[] = get_avan(selrel)    
-  end 
-
-  onany(model.par_rev, model.rev_unlock) do par_rev, rev_unlock 
-    print(rev_unlock)
-    if rev_unlock      
-      revisa_row_par(model.row_rev[], par_rev)   
-    end   
   end
+    
+end
 
-  onbutton(model.limpar_tudo_bt) do 
-    DBInterface.execute(db, "DELETE FROM b1_proc")
-    DBInterface.execute(db, "DELETE FROM b2_proc")   
-    DBInterface.execute(db, "DELETE FROM list_cruz")
-    DBInterface.execute(db, "DELETE FROM list_cruz_rv")
-    DBInterface.execute(db, "DELETE FROM st_cruz where id = 1")  
-    DBInterface.execute(db, """VACUUM "main" """)
-    DBInterface.execute(db, """VACUUM "temp" """)
-    model.linkado[] = false
-    model.bd[] = get_st_crz(1)
-    sql = """
-    UPDATE st_cruz as tb
-      SET crz_id = $(model.cruzamento[])
-    WHERE tb.id = 1; """
-    DBInterface.execute(db, sql)     
-    model.bd[] = get_st_crz(1)
-    model.list_rel[] = get_rel(model.cruzamento[])
-  end
+  function rel_bt_pad(request::Payload)
+    resp = Dict{Symbol, Union{String, Bool, Vector{Any}}}()
 
-  onany(model.row_rev, model.max_rev) do row_rev, max_rev
-    print(model.row_rev)
-    cor_rev = Dict("n" => "green", "nm" => "green", "dn" => "green", "sx" => "green", "ibge" => "green")  
-    if max_rev != 0 && row_rev >= 1 && row_rev <= max_rev    
-      dict_form = revisa_row(row_rev)
-      println(dict_form)
-      dist_n = jaro(dict_form["nome1"], dict_form["nome2"])
-      dist_n > 98 ? cor_rev["n"] = "green" : dist_n > 82 ? cor_rev["n"] = "yellow-4" : cor_rev["n"] = "red"
-      dist_nm = jaro(dict_form["nm_m1"], dict_form["nm_m2"])
-      ismissing(dist_nm) ? cor_rev["nm"] = "light-blue" : dist_nm > 98 ? cor_rev["nm"] = "green" : dist_nm > 82 ? cor_rev["nm"] = "yellow-4" : cor_rev["nm"] = "red"
-      ismissing(dict_form["distdn"]) ? cor_rev["dn"] = "light-blue" : dict_form["distdn"] > 98 ? cor_rev["dn"] = "green" : dict_form["distdn"] > 82 ? cor_rev["dn"] = "yellow-4" : dict_form["distdn"] > 49 ? cor_rev["dn"] = "orange-7" : cor_rev["dn"] = "red"
-      ismissing(dict_form["sexo1"]) || ismissing(dict_form["sexo2"]) ? cor_rev["sx"] = "light-blue" : dict_form["sexo1"] == dict_form["sexo2"] ? cor_rev["sx"] = "green" : cor_rev["sx"] = "red"
-      ismissing(dict_form["ibge1"]) || ismissing(dict_form["ibge2"]) ? cor_rev["ibge"] = "light-blue" : dict_form["ibge1"] == dict_form["ibge2"] ? cor_rev["ibge"] = "green" : cor_rev["ibge"] = "red"
-
-
-      model.rev_unlock[] = false
-      model.par_rev[] = dict_form["par_rev"]    
-      model.form_rev[] = dict_form
-      model.cor_rev[] = cor_rev    
-      #println(model.cor_rev[])
-    end
-  end
-
-  onbutton(model.rel_bt_pad) do
-    model.isprocessing[] = 1  
-
-    println(model.bd[])
-
-    println(model.selrel[])
-
-    if ismissing(model.selrel[]) 
-      model.msg[] = """Favor escolher um relatório antes de gerar relatório"""
+    if ~request.check(:selrel)
+      resp[:msg] = """Favor escolher um relatório antes de gerar relatório"""
+      resp[:cor] = "negative"
     else
-      escrita, escrita_a = gerar_relatorio(db, model.selrel[], model.bd[:b1_id],  model.bd[:b2_id], model.bd[][:nome])    
+      escrita, escrita_a = gerar_relatorio(request.get_number(:selrel), request.get_number(:b1_id),  request.get_number(:b2_id), request.dict[:nome])    
 
-      print("foi")
+      # print("foi")
       
-      folder_path = joinpath(pwd(), "data","reports", model.bd[][:nome])  
+      folder_path = joinpath(pwd(), "data","reports", request.dict[:nome])  
 
-      println(folder_path)
+      # println(folder_path)
 
       if ~escrita || ~escrita_a
-        model.msg[] = """O relatório não foi gerado porque o arquivo está aberto, feche e gere o relatório novamente"""
+        resp[:msg] = """O relatório não foi gerado porque o arquivo está aberto, feche e gere o relatório novamente"""
+        resp[:cor] = "negative"
       else
-        model.msg[] = """Cruzamento de dados concluído, você pode encontrar os resultados em $folder_path"""
+        resp[:msg] = """Cruzamento de dados concluído, você pode encontrar os resultados em $folder_path"""
         try
           run(`explorer.exe $(folder_path)`)
         catch
@@ -499,47 +227,67 @@ function handlers(model::Importar)
       end
     end
 
-    model.alert[] = true
-    model.rel_avan[] = true
-    model.isprocessing[] = 0
+    if :cor in keys(resp)
+      resp[:rel_avan] = false
+      resp[:q_alert] = false
+    else
+      resp[:rel_avan] = true
+      resp[:q_alert] = true
+      println(request.get_number(:cruzamento))
+    end
+
+
+    return resp
 
   end
 
-  onbutton(model.conclui_rev_bt) do
-    model.isprocessing[] = 1
-    model.modo_rev[] = false
-    model.list_rel[] = get_rel(model.cruzamento[])
-    # grava os dados do banco
-    sql = """
+  function conclui_rev_bt(cruz_id)    
+    query( """
       UPDATE st_cruz as tb
       SET modo_rev = 0
       WHERE tb.id = 1; 
-    """
-    #println(sql)
-    
-    DBInterface.execute(db, sql)
-    model.bd[] = get_st_crz(1)
-    model.isprocessing[] = 0
+    """)
+
+    resp = Dict(
+      :list_rel => get_rel(cruz_id)
+    )
+
+    return resp
+
   end
 
-  onbutton(model.update_model_bt) do     
-    model.bd[] = get_st_crz(1)
-    model.list_rel[] = get_rel(model.cruzamento[])    
+function get_rel_avan(request::Payload)  
+  resp = Dict{Symbol, Union{String, Bool, Vector{Any}}}()
+  if ~request.check(:selrel)
+    resp[:list_rel_avan] = []
+  else
+    resp[:list_rel_avan] = get_avan(request.get_number(:selrel))
   end
 
-  onbutton(model.rel_bt_avan) do
-    model.isprocessing[] = 1
+  return resp   
+end
 
-    rel_avan = get_avan_dict(model.selrel_avan[])
-    getfield(Pag_ini, Symbol(rel_avan[:function]))(rel_avan, get_st_crz(1))
+function rel_bt_avan(request)
+  println("rel_avancado")
 
-    model.msg[] = """Relatório avançado gerado com sucesso"""
-    model.alert[] = true
-        
-    model.isprocessing[] = 0
+  if ~request.check(:selrel_avan)
+    return Dict(
+      :msg => "Favor escolher um relatório antes de gerar relatório",
+      :cor => "negative"
+    )
   end
-   
-  model
+
+  rel_avan = get_avan_dict(request.get_number(:selrel_avan))
+
+  println(rel_avan)
+
+  getfield(Pag_ini, Symbol(rel_avan[:function]))(rel_avan, get_st_crz(1))
+
+  return Dict(
+    :q_alert => true,
+    :msg => "Relatório avançado gerado com sucesso"
+  ) 
+      
 end
 
 function create_storage_dir(name)
@@ -551,9 +299,9 @@ function create_storage_dir(name)
   return joinpath(@__DIR__, name)
 end
 
-# routs
+# # routs
 function receb_arquivos()
-  global bd = get_st_crz(1)
+  bd = get_st_crz(1)
   resp = Dict()
   csv_save = Dict("file1_id" => "b1", "file2_id" => "b2")
   files = Genie.Requests.filespayload()
@@ -562,16 +310,17 @@ function receb_arquivos()
   println(post)
   # println(files)
 
-  # println(post[:cruzamento])
+  println(post[:cruzamento])
   b1 = nothing; b2 = nothing
   try
-    b1, b2 = get_sql_bancos_defs(db, post[:cruzamento])
-  catch
+    b1, b2 = importadores.get_sql_bancos_defs(post[:cruzamento])
+  catch e
+    @error "Erro ao pegar os bancos" exception=(e, catch_backtrace())
     resp["cor"] = "negative"
     resp["msg"] = "O cruzamento de dados não foi escolhido" 
     return Json.json(resp)
   end
-
+    
   fs = []
   # println(Symbol(b1.file))
   # f = files[Symbol(b1.file)]
@@ -600,17 +349,17 @@ function receb_arquivos()
     write(joinpath("data", "linksus", "bruto", string(b1.file, splitext(f.name)[2])), f.data)
     df = getfield(importadores, Symbol(b1.function))(joinpath("data", "linksus", "bruto", string(b1.file, splitext(f.name)[2]))) # Importa a base de dados como df  
 
-    erro, resp = valida_bancos(db, df, b1, resp)
+    erro, resp = valida_bancos(df, b1, resp)
     erro && (return Json.json(resp))
     
     if ismissing(df1)
       df1 = df
     else
-      df1 = append!(df1, df)
+      df1 = append!(df1, df, promote=true)
     end
   end
   
-  formata_proc_bd(db, df1, csv_save, b1) # sobe os dados para o sql, dados apenas de cruzamento
+  formata_proc_bd(df1, csv_save, b1) # sobe os dados para o sql, dados apenas de cruzamento
 
   b1_n = size(df1,1)
   textb1 = "Foram importados $(size(df1,1)) registros"
@@ -640,7 +389,7 @@ function receb_arquivos()
     write(joinpath("data", "linksus", "bruto", string(b2.file, splitext(f.name)[2])), f.data)
     df = getfield(importadores, Symbol(b2.function))(joinpath("data", "linksus", "bruto", string(b2.file, splitext(f.name)[2]))) # Importa a base de dados como df  
 
-    erro, resp = valida_bancos(db, df, b2, resp)
+    erro, resp = valida_bancos(df, b2, resp)
     erro && (return Json.json(resp))
     
     if ismissing(df1)
@@ -650,26 +399,26 @@ function receb_arquivos()
     end
   end
    
-  formata_proc_bd(db, df1, csv_save, b2)
+  formata_proc_bd(df1, csv_save, b2)
   b2_n = size(df1,1)
   textb2 = "Foram importados $(size(df1,1)) registros"
   
   #impor_arquivos(post[:cruzamento], FILE_PATH)
 
-  md = Base.invokelatest(Importar) # conseguindo coletar o modelo
+  # md = Base.invokelatest(Importar) # conseguindo coletar o modelo
 
-  # grava os dados do banco
-  sql = """
+  # grava os dados do banco  
+  query("""
   UPDATE st_cruz as tb
   SET b1_n = '$b1_n', b2_n = '$b2_n', crz_id= $(post[:cruzamento]), importado = 1
-  WHERE tb.id = 1; """
-  #println(sql)
-  DBInterface.execute(db, sql)   
+  WHERE tb.id = 1; """)   
   
   resp["cor"] = "positive"
   resp["msg"] = "Concluído com sucesso" 
   resp["textb1"] = textb1
   resp["textb2"] = textb2
+  resp["bd"] = get_st_crz(1)
+
   return Json.json(resp)  
   
 end
@@ -708,7 +457,8 @@ function processa_notificasus()
   end
 
   resp["cor"] = "positive"
-  resp["msg"] = "Concluído com sucesso"   
+  resp["msg"] = "Concluído com sucesso"
+  
   return Json.json(resp)
 
 end
@@ -717,7 +467,7 @@ end
 # funções acessórias
 #Importar banco
 """Formata o banco de dados"""
-function formata_proc_bd(db::SQLite.DB, df::DataFrame, csv_save::Dict, row::DataFrameRow)
+function formata_proc_bd(df::DataFrame, csv_save::Dict, row::DataFrameRow)
 
   insertcols!(df, 1, :index => axes(df, 1))
   
@@ -815,22 +565,22 @@ function formata_proc_bd(db::SQLite.DB, df::DataFrame, csv_save::Dict, row::Data
     CSV.write(io, df, delim=";")
   end  
 
-  DBInterface.execute(db, "DELETE FROM $(string(csv_save[row.file], "_proc"))")
+  query("DELETE FROM $(string(csv_save[row.file], "_proc"))")
   
   #replace!(df.a, "None" => "c")
   # show(filter([:index] => x -> x == 10329, df))
 
-  SQLite.load!(df, db, string(csv_save[row.file], "_proc"))  
+  SQLite.load!(df, connection(), string(csv_save[row.file], "_proc"))  
   
     
 end
 
 """Checa e corrige os bancos,
 O banco_id é a chave do banco selecionado"""
-function valida_bancos(db::SQLite.DB, df1::DataFrame, b1::DataFrameRow, resp::Dict)
-    col_b1 = get_sql_bancos_cols(db, b1.id) 
-    subs_b1 = get_sql_bancos_subs(db, b1.id)
-    prep = get_sql_bancos_prep(db, b1.id)
+function valida_bancos(df1::DataFrame, b1::DataFrameRow, resp::Dict)
+    col_b1 = get_sql_bancos_cols(b1.id) 
+    subs_b1 = get_sql_bancos_subs(b1.id)
+    prep = get_sql_bancos_prep(b1.id)
     
     # faz a checagem dos campos a serem substituídos  
     for item in eachrow(prep)
@@ -881,10 +631,9 @@ function linkage_det()
   resp = Dict()
   local limar_sms = 170 #CRIAR CONFIGURAÇÃO
   local limiar_nome = 71
-  md = Base.invokelatest(Importar)
-  println(md.cruzamento[])
-  global bd = get_st_crz(1)
+  bd = get_st_crz(1)
   
+  println("block")
 
   df = block_sql_mult(10, bd[:b1_n]) 
   insertcols!(df, 1, :id => axes(df,1))
@@ -909,7 +658,7 @@ function linkage_det()
 
   # calcula escores probabilisticos
   t_score = now()
-  dfp = calc_prob(DataFrames.select(df, Not([:levn, :levnm, :escore, :dn1, :dn2])), db)
+  dfp = calc_prob(DataFrames.select(df, Not([:levn, :levnm, :escore, :dn1, :dn2])), query("""select * from defs_prob where id = 1"""))
   
   # tipo da abreviação e crianças
   insertcols!(df, :escore, :difday => 0, after=true)
@@ -1225,8 +974,8 @@ function linkage_det()
   df.id = axes(df, 1) 
 
   # carrega todos os dados
-  DBInterface.execute(db, "DELETE FROM list_cruz")
-  SQLite.load!(df, db, "list_cruz")
+  query("DELETE FROM list_cruz")
+  SQLite.load!(df, connection(), "list_cruz")
 
   # carrega o que vai ser revisado
   dfr = DataFrames.select(df, [:id, :regra, :par_rev])
@@ -1234,8 +983,8 @@ function linkage_det()
   filter!([:regra] => x -> contains(x, "N"), dfr) # filtra só as linhas que devem ser revisadas
   insertcols!(dfr, 1, :id => axes(dfr,1))
 
-  DBInterface.execute(db, "DELETE FROM list_cruz_rv")
-  SQLite.load!(dfr, db, "list_cruz_rv")
+  query("DELETE FROM list_cruz_rv")
+  SQLite.load!(dfr, connection(), "list_cruz_rv")
         
   if size(dfr, 1) > 0 
     resp["modo_rev"] = true 
@@ -1259,7 +1008,7 @@ function linkage_det()
   SET modo_rev = $(resp["modo_rev"]), max_rev = $(resp["max_rev"]), linkado = 1, revisado=$revisado, rel_n= '$rel_n'
   WHERE tb.id = 1; """
   #println(sql)
-  DBInterface.execute(db, sql)   
+  query(sql)   
 
   return Json.json(resp)  
  
@@ -1288,7 +1037,19 @@ function checa_nomes(vt::Vector, bd::String)
     where
       "index" in ('$loc')
   """
-  df = DBInterface.execute(db, sql) |> DataFrame
+  df = query(sql) |> DataFrame
+
+  freq_pn = DataFrame(CSV.File(open(read, joinpath("data", "linksus", "freq", "freq_pn.csv"))))
+  freq_pn.pn = map(x -> string(x), freq_pn.pn)
+  freq_sn = DataFrame(CSV.File(open(read, joinpath("data", "linksus", "freq", "freq_sn.csv"))))
+  freq_sn.sn = map(x -> string(x), freq_sn.sn)
+  freq_un = DataFrame(CSV.File(open(read, joinpath("data", "linksus", "freq", "freq_un.csv"))))
+  freq_un.un = map(x -> string(x), freq_un.un)
+  freq_pnm = DataFrame(CSV.File(open(read, joinpath("data", "linksus", "freq", "freq_pnm.csv"))))
+  freq_pnm.pnm = map(x -> string(x), freq_pnm.pnm)
+  freq_unm = DataFrame(CSV.File(open(read, joinpath("data", "linksus", "freq", "freq_unm.csv"))))
+  freq_unm.unm = map(x -> string(x), freq_unm.unm)
+
 
   if bd == "b1"
     leftjoin!(df, freq_pn, on=:pn1=>:id)
@@ -1315,23 +1076,26 @@ function revisa_row(row)
       inner join b2_proc on b2_proc."index" = tb.id2
     where tb0.id = $row;
   """
-  df = DBInterface.execute(db, sql) |> DataFrame
+  df = query(sql)
 
   #print(df)
 
   df = df[1, :]
+
   return Dict(names(df) .=> values(df))
 end
 
 "Define se os registros são pares"
 function revisa_row_par(row::Int64, par::String)
-  sql = """
+  if !(par in ["S", "N"])
+    throw(ArgumentError("O parâmetro par deve ser 'S' ou 'N', mas foi informado $(par)"))
+  end  
+  query("""
     UPDATE list_cruz_rv
     SET par_rev = '$par'
     WHERE id = $row;
-  """
-  println(sql)
-  DBInterface.execute(db, sql) 
+  """) 
+
 
 end
 function revisa_row_par(row::String, par::String)
@@ -1342,9 +1106,9 @@ end
 
 # Relatórios
 "Constrói o df com o relatório"
-function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
+function gerar_relatorio(rel_id, b1_id, b2_id, nome_cruz)
   dict = Dict{String, Any}()
-  println(rel_id)
+  # println(rel_id)
 
   sql = """
     select
@@ -1360,9 +1124,9 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
 
     order by tb.ordem
   """
-  df_cols = DBInterface.execute(db, sql) |> DataFrame
+  df_cols = query(sql)
 
-  show(df_cols)
+  # show(df_cols)
 
   sql = """
     select
@@ -1372,7 +1136,7 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
     where
       not rv.par_rev is 'N'
     """
-  rel = DBInterface.execute(db, sql) |> DataFrame
+  rel = query(sql) |> DataFrame
 
   # println(size(rel, 1))
   # show(rel)
@@ -1380,27 +1144,27 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
 
   df1 = carregar_csv("b1")  
   dict["df_b1"] = df1
-  show(df1)
+  # show(df1)
   # println(bd)
   # println("Foi")
 
   cols = ["index"] ; append!(cols, filter([:banco_id] => x -> x == b1_id, df_cols).col)
   print(cols)
   leftjoin!(rel, DataFrames.select(df1, cols), on= :id1 => :index)
-  show(rel)
+  # show(rel)
   subs = Dict{String,String}()
   for row in eachrow(filter([:banco_id] => x -> x == b1_id, df_cols))
     row.col != row.var_rel && (subs[row.col] = row.var_rel)
   end
   println(subs)
   DataFrames.rename!(rel, subs)
-  show(rel)
+  # show(rel)
 
-  print("foi")
+  # print("foi")
 
   df1 = carregar_csv("b2")
   dict["df_b2"] = df1
-  show(df1)
+  # show(df1)
   # println(b2_id)
   # show(df_cols)
   cols = ["index"] ; append!(cols, filter([:banco_id] => x -> x == b2_id, df_cols).col)
@@ -1430,10 +1194,10 @@ function gerar_relatorio(db, rel_id, b1_id, b2_id, nome_cruz)
   local escrita = false
 
   # println(df_cols.var_rel)  
-  df_pos = get_sql_rel_pos(db, rel_id)
+  df_pos = get_sql_rel_pos(rel_id)
 
   # show(dict["df_b1"])
-  show(describe(rel), allrows=true)
+  # show(describe(rel), allrows=true)
 
   escrita_a = true
   if size(df_pos, 1) > 0
@@ -1487,10 +1251,21 @@ function rel_avan_falta_encer(DiasPCR, DiasIgM, ClassfP, ClassfN, rel_avan, cruz
   df1 = XLSX.readtable(Local, 1) |> DataFrame
 
   filter!(["Dif Dias 1ºS", "Critério"] => (x,y) -> -6 < x < 91 && (ismissing(y) || y != 1), df1)
-  show(names(df1))
-  
-  select!(df1, ["Notificação", "Dt_Not", "Nome", "Requisição", "Exame", "Dt_Coleta", "Resultado", "Classificação", "Critério", "Dif Dias 1ºS", "Dif Dias Not"])
+  # show(names(df1))
+  show(df1)
+
+  filter!(r -> r["Status"] == "Resultado Liberado" && contains(r["Exame"], uppercasefirst(agravo)), df1)
+
+  if agravo == "dengue"
+    check_neg = [11, 12]
+    select!(df1, ["Notificação", "Dt_Not", "Nome", "Requisição", "Exame", "Dt_Coleta", "Resultado", "Classificação", "Critério", "Dif Dias 1ºS", "Dif Dias Not", "Status", "Sorotipo"])
+  else 
+    check_neg = [13]
+    select!(df1, ["Notificação", "Dt_Not", "Nome", "Requisição", "Exame", "Dt_Coleta", "Resultado", "Classificação", "Critério", "Dif Dias 1ºS", "Dif Dias Not", "Status"])
+  end
+
   insertcols!(df1, 1, :check => false)
+  show(df1)
 
   for row in eachrow(df1)
     if row["Dif Dias 1ºS"] < DiasPCR && contains(row["Exame"], "PCR")
@@ -1498,7 +1273,7 @@ function rel_avan_falta_encer(DiasPCR, DiasIgM, ClassfP, ClassfN, rel_avan, cruz
         row.check = true
         row["Classificação"] = ClassfP
         row["Critério"] = 1
-      elseif row["Resultado"] == "Não Detectável" && (ismissing(row["Classificação"]) ||  (row["Classificação"] != 11 && row["Classificação"] != 12))
+      elseif row["Resultado"] == "Não Detectável" && (ismissing(row["Classificação"]) || ~(row["Classificação"] in check_neg))
         row.check = true
         row["Classificação"] = ClassfN
         row["Critério"] = 1
@@ -1508,7 +1283,7 @@ function rel_avan_falta_encer(DiasPCR, DiasIgM, ClassfP, ClassfN, rel_avan, cruz
         row.check = true
         row["Classificação"] = ClassfP
         row["Critério"] = 1
-      elseif row["Resultado"] == "Não Reagente" && (ismissing(row["Classificação"]) ||  (row["Classificação"] != 11 && row["Classificação"] != 12))
+      elseif row["Resultado"] == "Não Reagente" && (ismissing(row["Classificação"]) || ~(row["Classificação"] in check_neg))
         row.check = true
         row["Classificação"] = ClassfN
         row["Critério"] = 1
@@ -1518,7 +1293,7 @@ function rel_avan_falta_encer(DiasPCR, DiasIgM, ClassfP, ClassfN, rel_avan, cruz
         row.check = true
         row["Classificação"] = ClassfP
         row["Critério"] = 1
-      elseif row["Resultado"] == "Não Reagente" && (ismissing(row["Classificação"]) ||  (row["Classificação"] != 11 && row["Classificação"] != 12))
+      elseif row["Resultado"] == "Não Reagente" && (ismissing(row["Classificação"]) || ~(row["Classificação"] in check_neg))
         row.check = true
         row["Classificação"] = ClassfN
         row["Critério"] = 1
@@ -1576,10 +1351,5 @@ function rel_avan_falta_encer_z(rel_avan, cruz)
   
 end
 
-@compile_workload begin
-  # init_from_storage(Importar, debounce = 30) |> Pag_ini.handlers
-  df = DataFrame(x=[1,2])
- 
-end
 
 end # fim do modulo

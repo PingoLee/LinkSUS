@@ -1,0 +1,349 @@
+
+<q-layout view="lHh Lpr lFf" class="bg-white">
+  <q-header elevated>
+    <q-toolbar>
+      <q-btn
+        flat
+        dense
+        round
+        v-on:click="leftDrawerOpen = !leftDrawerOpen"
+        aria-label="Menu"
+        icon="menu"
+      />
+
+      <q-toolbar-title>
+        LinkSUS
+      </q-toolbar-title>
+
+      <q-space />              
+      <q-btn dense flat icon="close" href='/api/logout' >
+        <q-tooltip>Fechar o aplicativo (fecha apenas o servidor) o navegador permanece aberto</q-tooltip>
+      </q-btn>
+    </q-toolbar>
+  </q-header>
+
+  <q-drawer
+    v-model="leftDrawerOpen"
+    show-if-above
+    bordered
+    class="bg-grey-2"
+    >
+    <q-list>
+      <q-item-label header>O que quer fazer?</q-item-label>
+      <q-item clickable v-close-popup tabindex="0" href="/config">
+        <q-item-section avatar>
+          <q-icon name="settings" />
+        </q-item-section>
+        <q-item-section>
+          <q-item-label>Configurar banco</q-item-label>
+        </q-item-section>
+      </q-item>
+
+      <q-item clickable v-close-popup tabindex="0" href="/config_rel">
+        <q-item-section avatar>
+          <q-icon name="settings" />
+        </q-item-section>
+        <q-item-section>
+          <q-item-label>Conf. relatório</q-item-label>
+        </q-item-section>
+      </q-item>
+      
+    </q-list>
+  </q-drawer>
+
+  <q-page-container>
+    <q-form class="row q-gutter-xs" method="POST" action="/sub" v-on:submit='onSubmit' v-on:reset='onReset'>
+
+      <div class="col">
+        <q-card v-show="bd.importado == 0" flat bordered class="my-card">
+          <q-card-section>
+            <div  class="text-h6">Importar bancos</div>
+          </q-card-section>
+    
+          <q-card-section class="q-pt-none">
+            <q-file :disable="bd.b1 == null" multiple  field-name="File1" v-model="client_file1" rounded="" outlined="" name="file1_id" 
+            :label="bd.b1 == null ? 'Escolha o tipo de cruzamento' : 'Escolha o banco de dados: ' + bd.b1"></q-file>
+            <br>
+            <q-file :disable="bd.b2 == null" multiple field-name="File2" v-model="client_file2"  rounded="" outlined="" name="file2_id" 
+            :label="bd.b2 == null ? 'Escolha o tipo de cruzamento' : 'Escolha o banco de dados: ' + bd.b2"></q-file>
+  
+          </q-card-section>      
+        </q-card>
+  
+        <q-card v-show="bd.importado == 1" flat bordered class="my-card">
+          <q-card-section>
+            <div class="text-h6">Bancos importados</div>
+          </q-card-section>
+            
+          <q-card-section class="q-pt-none">
+            <q-input disable v-model="textb1" :label="labelb1"/>
+            <br>
+            <q-input disable v-model="textb2" :label="labelb2"/>
+          </q-card-section>      
+        </q-card>
+                      
+      </div>
+  
+      <div class="col col-4">        
+          <q-card flat bordered class="my-card">
+              <q-card-section>
+                  <div class="text-h6">Selecione qual cruzamento realizar</div>
+              </q-card-section>
+          
+              <q-card-section class="q-pt-none">
+                  <div class="col col-12"> 
+                    <q-select :disable="bd.importado == 1" filled v-model="cruzamento" :options="cruzamentos" label="Escolha quais bancos cruzar" map-options emit-value
+                    name="cruzamento" option-label="nome" option-value="id" />  
+                  </div>    
+                  <div class="q-pa-md q-gutter-sm">         
+                      <q-btn :disable="bd.importado == 1 || !cruzamento" color="primary" label="Importar bancos" type="submit" :loading="isprocessing && bd.importado == 0"/>
+                      <q-btn :disabled="!cruzamento" color="white" text-color="black" label="Limpar" type="reset" :loading="isprocessing"  />           
+                  </div>      
+              </q-card-section>      
+          </q-card>  
+      </div>
+  
+      <div v-show="bd.importado == 1" class="col col-3" >        
+        <q-card flat bordered class="my-card">
+          <q-card-section>
+            <div class="text-h6">Efetue o cruzamento de dados</div>
+          </q-card-section>
+      
+          <q-card-section class="q-pt-none"> 
+          
+              <!-- <q-btn-group rounded spread>            
+                <q-btn color="amber" rounded glossy icon="visibility" />
+                <q-btn color="amber" rounded glossy icon-right="update" label="Update" />
+                <q-btn :disable="cruzado" v-on:click='onCruzar' class="full-width" color="primary" icon="find_in_page" :loading="isprocessing" :readonly="isprocessing"/>
+                <q-btn color="red"  class="full-width" icon="delete_forever" :loading="isproce  ssing" :readonly="isprocessing" />    
+              </q-btn-group>    -->
+                
+            <div class="q-pa-md q-gutter-sm">     
+              
+              <div class="row">
+                <div class="col">   
+                  <q-btn :disable="cruzado" v-on:click='onCruzar' class="full-width" color="primary" label="Cruzar bancos de dados" :loading="isprocessing" :readonly="isprocessing"/>
+                </div> 
+                <div v-if="false" class="col-2" >
+                  <q-btn color="red"  icon="delete_forever" :loading="isprocessing" :readonly="isprocessing" />            
+                </div>
+              </div>
+  
+              <div v-show="modo_rev == 1 && bd.linkado == 1" class="row">              
+                <q-btn v-on:click="conclui_rev_bt()" class="full-width" color="primary" label="Concluir revisão" :loading="isprocessing" :readonly="isprocessing"/>              
+              </div>
+                        
+              <div v-show="modo_rev == 0 && bd.linkado == 1" class="row">              
+                  <q-btn v-on:click="rel_bt_pad()" class="full-width" color="primary" label="Gerar relatório" :loading="isprocessing" :readonly="isprocessing"/>              
+              </div>
+                  
+            </div>      
+          </q-card-section>      
+        </q-card>  
+      </div>
+  </q-form>
+  
+  <div v-show="modo_rev" class="q-pa-md">
+    <q-card flat bordered class="my-card">
+      <q-card-section>
+        <div class="text-h6">Revise os casos duvidosos</div>
+        <div class="row">
+          <q-badge color="secondary">
+            Revisando: {{row_rev}} de {{max_rev}}
+          </q-badge>
+          <div v-if="par_rev == '-'">
+            <q-badge color="grey">
+              Falta analisar
+            </q-badge>
+          </div>
+          <div v-else>
+            <q-badge :color="par_rev == 'S' ? 'green' : 'red'">
+              {{par_rev == 'S' ? 'Confirmado' : 'Rejeitado'}}
+            </q-badge>
+          </div>
+        </div>
+      </q-card-section>
+  
+      <q-card-section>     
+        <div class="q-gutter-md row">      
+          <div class="col-2">
+            <q-input dense v-model="form_rev.cod1" filled type="text" label="Código do banco 1" />
+          </div>
+          <div class="col-2">
+            <q-input dense v-model="form_rev.cod2" filled type="text" label="Código do banco 2" />
+          </div>
+          <div class="col-1">
+            <q-input dense v-model="form_rev.escore" filled type="text" label="Esc. deter." />
+          </div>
+          <div class="col-1">
+            <q-input dense v-model="form_rev.escore_prob" filled type="text" label="Esc. prob" />   
+          </div>
+  
+          <div class="col">              
+            <q-slider snap label markers v-model="row_rev" :min="1" :max="max_rev" >  
+          </div>
+  
+        </div>
+  
+        <br>
+  
+        <q-input square outlined dense
+          v-model="form_rev.nome1"
+          label="Nome 1"  
+          :bg-color="cor_rev.n"     
+          />
+        <q-input square outlined dense       
+          v-model="form_rev.nome2"
+          label="Nome 2" 
+          :bg-color="cor_rev.n"       
+        />
+  
+        <br>
+  
+        <q-input square outlined dense
+          v-model="form_rev.nm_m1"
+          label="Nome da mãe 1"   
+          :bg-color="cor_rev.nm"     
+        />
+  
+        <q-input square outlined dense
+          v-model="form_rev.nm_m2"
+          label="Nome da mãe 2"   
+          :bg-color="cor_rev.nm"     
+        />
+  
+        <br>
+  
+        <div class="row justify-between">
+          <div class="col-8">
+            <div class="q-gutter-md row">        
+          
+              <q-input :bg-color="cor_rev.dn" dense v-model="form_rev.dn1" filled type="date" label="Data de nascimento 1" />
+              <q-input :bg-color="cor_rev.dn" dense v-model="form_rev.dn2" filled type="date" label="Data de nascimento 2" />
+    
+              <q-input dense v-model="form_rev.dr1" filled type="date" label="Data do registro 1" />
+              <q-input dense v-model="form_rev.dr2" filled type="date" label="Data do registro 2" />
+            
+    
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="row q-gutter-sm">
+              <q-btn round :disabled="row_rev <= 1" v-on:click="row_rev = 1" color="primary" icon="first_page" />
+              <q-btn round :disabled="row_rev <= 1" v-on:click="row_rev -= 1" color="primary" icon="arrow_back_ios" />
+  
+              <q-btn square v-on:click="onPar('N')" color="red" label="Não par" />
+              <q-btn square v-on:click="onPar('S')" color="green" label="Par" />
+  
+              
+              <q-btn round :disabled="row_rev >= max_rev" v-on:click="row_rev += 1" color="primary" icon="chevron_right" />
+              <q-btn round :disabled="row_rev >= max_rev" v-on:click="row_rev = max_rev" color="primary" icon="last_page" />
+  
+            </div>
+          </div>
+        </div>
+  
+        <br>
+          
+        <div class="q-gutter-md row">   
+          <div class="col-1"> 
+            <q-input :bg-color="cor_rev.sx" dense v-model="form_rev.sexo1" filled type="text" label="Sexo 1" />      
+          </div>
+          <div class="col-1">             
+            <q-input :bg-color="cor_rev.sx" dense v-model="form_rev.sexo2" filled type="text" label="Sexo 2" />
+          </div>
+  
+          <div class="col-1">
+            <q-input :bg-color="cor_rev.ibge" dense v-model="form_rev.ibge1" filled type="text" label="Município 1" />
+          </div>
+          <div class="col-1">
+            <q-input :bg-color="cor_rev.ibge" dense v-model="form_rev.ibge2" filled type="text" label="Município 2" />
+          </div>          
+  
+          <div class="col">
+            <q-input dense v-model="form_rev.end1" filled type="text" label="Endereço 1" />              
+          </div>
+          <div class="col">          
+            <q-input dense v-model="form_rev.end2" filled type="text" label="Endereço 2" />         
+          </div>
+        </div>
+        
+      </q-card-section>
+    </q-card>  
+  </div>
+  
+  <div v-show="modo_rev == false && bd.linkado == 1" class="q-pa-md">
+    <q-card flat bordered class="my-card">
+      <q-card-section>
+        <div class="text-h6">Relatório: {{textrel}}</div>
+      </q-card-section>
+        
+      <q-card-section class="q-pt-none">
+        
+          <div class="row q-gutter-lg">
+            <div class="col"> 
+              
+                <q-select class="col" filled v-model="selrel" :options="list_rel" label="Relatório" map-options emit-value
+                  option-label="nome" option-value="id" >          
+                </q-select>              
+          
+            </div>
+  
+            <div v-show='list_rel_avan.length && rel_avan' class="col-4"> 
+              <q-select filled v-model="selrel_avan" :options="list_rel_avan" label="Escolha quais bancos cruzar" map-options emit-value
+              option-label="nome" option-value="id" >
+                <template v-slot:after>
+                  <q-btn dense round v-on:click="rel_bt_avan()" color="primary" icon="directions" :loading="isprocessing" :readonly="isprocessing"/>
+                  
+                </template>
+              </q-select>   
+            </div>     
+          </div>
+  
+      </q-card-section>      
+    </q-card>
+  </div>
+  
+  <div v-show="modo_rev == false && bd.linkado == 1 && cruzamento == 3" class="q-pa-md">
+    <q-form class="row q-gutter-xs" method="POST" action="/rel_nsus_covid_pos" v-on:submit='rel_nsus_covid_pos_Submit'>
+      <div class="col">
+        <q-card flat bordered class="my-card">
+          <q-card-section>
+            <div class="text-h6">Importe o arquivo xlsx baixado do Drive do COE</div>
+          </q-card-section>
+    
+          <q-card-section class="q-pt-none">
+            <div class="row">
+              <div class="col">   
+                <q-file :loading="isprocessing" :readonly="isprocessing" field-name="File1" v-model="client_file_ext" rounded="" outlined="" name="file1_id" :label="textext">                              
+                    <q-btn round dense flat color="primary"  icon="send" label="Gerar" type="submit" :loading="isprocessing" :readonly="isprocessing" />                
+                </q-file>    
+                <q-input v-show="false" filled v-model="cruzamento" label="Escolha quais bancos cruzar" map-options emit-value name="cruzamento" />
+              </div>                   
+            </div>
+          </q-card-section>      
+        </q-card>      
+                      
+      </div>
+    </q-form>
+  </div>
+  
+  <q-dialog v-model="q_alert">
+    <q-card>
+      <q-card-section>
+        <div class="text-h6">Atenção</div>
+      </q-card-section>
+  
+      <q-card-section class="q-pt-none">
+        {{msg}}
+      </q-card-section>
+  
+      <q-card-actions align="right">
+        <q-btn flat label="OK" color="primary" v-close-popup />
+      </q-card-actions>
+    </q-card>
+  </q-dialog> 
+
+  </q-page-container>
+</q-layout>
+

@@ -510,13 +510,8 @@ export calc_prob, soma_string, levsn
 """Calcula o score probabilistico (definições fixas)
 O df1 pode vir sem as informações dos cálculos deterministicos e data de nascimento
 """
-function calc_prob(df1::DataFrame, db::SQLite.DB)
+function calc_prob(df1::DataFrame, df::DataFrame)
   # baixa as informações da data de registro (talvez fica bom para bases muito grandes IMPLEMENTAR)
-
-  sql = """
-    select * from defs_prob where id = 1
-  """
-  df = DBInterface.execute(db, sql) |> DataFrame
 
   prob = df[1,:]
 

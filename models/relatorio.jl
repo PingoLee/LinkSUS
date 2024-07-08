@@ -175,6 +175,9 @@ function rlt_gal_arbo(df_o, Local, dict::Dict{String, Any})
   insertcols!(df_o, :"Dif Dias 1ºS" => 0)
   insertcols!(df_o, :"Dif Dias Not" => 0)
 
+  #   show(df_o)
+  df_o.Exame = convert(Vector{Union{Missing, String}}, df_o.Exame)
+
   for row in eachrow(df_o)
     row["Dif Dias 1ºS"] = Dates.value(row["Dt_Coleta"]) - Dates.value(row["Dt 1ºSint"])
     row["Dif Dias Not"] = Dates.value(row["Dt_Coleta"]) - Dates.value(row["Dt_Not"])
