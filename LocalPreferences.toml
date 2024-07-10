@@ -1,2 +1,2 @@
 [LinkSUS]
-precompile_workload = true
+precompile_workload = false

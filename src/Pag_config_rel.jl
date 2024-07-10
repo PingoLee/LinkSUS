@@ -7,14 +7,6 @@ using DataFrames, CSV
 import LinkSUS.SearchLight: query, connection
 import LinkSUS: Payload
 
-
-# draggabletree_deps() = [
-#     script(src = "https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js")
-#     script(src = """https://cdnjs.cloudflare.com/ajax/libs/Vue.Draggable/2.24.3/vuedraggable.umd.js""")
-# ]
-
-
-
 # colect sql informations
 function get_bd(loc,rel)
   if loc |> ismissing

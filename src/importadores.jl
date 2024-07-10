@@ -1,5 +1,11 @@
 module importadores
 
+println(@__MODULE__)
+# println(Base.Main)
+# println(Base.LinkSUS)
+# println(Base.Main.LinkSUS)
+
+
 using DataFrames, CSV, DBFTables, XLSX
 using StringEncodings, Dates
 import LinkSUS.SearchLight: query

@@ -1,8 +1,9 @@
 module relatorio
 
-include("importadores.jl")
-include("linkage_f.jl")
-using .linkage_f, .importadores
+# include("importadores.jl")
+# include("linkage_f.jl")
+using LinkSUS.linkage_f
+using LinkSUS.importadores
 
 using DataFrames, CSV, DBFTables, XLSX, SQLite
 using StringEncodings, Dates

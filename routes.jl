@@ -15,6 +15,7 @@ route("/session") do
   s.data |> json
 end
 
+
 route("/") do
   Genie.Renderer.Html.html(Genie.Renderer.filepath("layouts\\templates\\linkage.jl.html"), layout = Genie.Renderer.filepath("layouts\\app.jl.html"), scripts="<script src='/js/cust/linksus.js'></script>")
 end
