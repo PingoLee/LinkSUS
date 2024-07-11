@@ -9,9 +9,6 @@ LinkSUS.main()
 
 LinkSUS.Genie.isrunning() || up(port=8001)
 
-# execute powershell command start "C:\Program Files\Google\Chrome\Application\chrome.exe" "http://localhost:8001/"
-
-run(`cmd /c start \"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\" "http://localhost:8001/"`)
 
 # LinkSUS.compile()
 
