@@ -11,41 +11,33 @@ function main()
   Genie.genie(; context = @__MODULE__)
 end
 
+ENV["PRECOMPILE"] == "true" && begin
+  verbose[] = true
 
-# LinkSUS.HTTP.request("GET", "http://127.0.0.1:8001/session") |> println
+  @setup_workload begin
+    main()
 
-verbose[] = true
+    using Genie.Router
 
-@setup_workload begin
-  using Genie.Router
+    using Genie.Requests
+    using Genie, GenieSession, GenieSessionFileSession, Genie.Renderer.Json
 
-  using Genie.Requests
-  using Genie, GenieSession, GenieSessionFileSession, Genie.Renderer.Json
+    using HTTP
 
-  using HTTP
+    @compile_workload begin
+      
+      Genie.isrunning() || up(port=8001)
 
+      HTTP.request("GET", "http://127.0.0.1:8001/") 
+      HTTP.get("http://127.0.0.1:8001/get_bd?cruzamento=2")
 
-  @compile_workload begin
-    route("/session") do
-      s = session(params())
-      if !haskey(s.data, :number)
-          return Genie.Renderer.redirect(:get) # index / is associated with symbol :get
-      end
-      "Your random number is $(s.data[:number])
-      <br> <a href='/clear_data'>Clear data</a>"
-    
+      down()
+      
     end
-
-    Genie.isrunning() || up(port=8001)
-
-    HTTP.request("GET", "http://127.0.0.1:8001/session") 
-
-    down()
-    
   end
-end
 
-println("Server compile done")
+  println("Server compile done")
+end
     
 
 

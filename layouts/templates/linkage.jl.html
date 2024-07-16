@@ -9,7 +9,7 @@
         v-on:click="leftDrawerOpen = !leftDrawerOpen"
         aria-label="Menu"
         icon="menu"
-      />
+      ></q-btn>
 
       <q-toolbar-title>
         LinkSUS
@@ -76,9 +76,9 @@
           </q-card-section>
             
           <q-card-section class="q-pt-none">
-            <q-input disable v-model="textb1" :label="labelb1"/>
+            <q-input disable v-model="textb1" :label="labelb1"></q-input>
             <br>
-            <q-input disable v-model="textb2" :label="labelb2"/>
+            <q-input disable v-model="textb2" :label="labelb2"></q-input>
           </q-card-section>      
         </q-card>
                       
@@ -96,8 +96,8 @@
                     name="cruzamento" option-label="nome" option-value="id" />  
                   </div>    
                   <div class="q-pa-md q-gutter-sm">         
-                      <q-btn :disable="bd.importado == 1 || !cruzamento" color="primary" label="Importar bancos" type="submit" :loading="isprocessing && bd.importado == 0"/>
-                      <q-btn :disabled="!cruzamento" color="white" text-color="black" label="Limpar" type="reset" :loading="isprocessing"  />           
+                      <q-btn :disable="bd.importado == 1 || !cruzamento" color="primary" label="Importar bancos" type="submit" :loading="isprocessing && bd.importado == 0"></q-btn>
+                      <q-btn :disabled="!cruzamento" color="white" text-color="black" label="Limpar" type="reset" :loading="isprocessing" ></q-btn>       
                   </div>      
               </q-card-section>      
           </q-card>  
@@ -122,19 +122,19 @@
               
               <div class="row">
                 <div class="col">   
-                  <q-btn :disable="cruzado" v-on:click='onCruzar' class="full-width" color="primary" label="Cruzar bancos de dados" :loading="isprocessing" :readonly="isprocessing"/>
+                  <q-btn :disable="cruzado" v-on:click='onCruzar' class="full-width" color="primary" label="Cruzar bancos de dados" :loading="isprocessing" :readonly="isprocessing"></q-btn>
                 </div> 
                 <div v-if="false" class="col-2" >
-                  <q-btn color="red"  icon="delete_forever" :loading="isprocessing" :readonly="isprocessing" />            
+                  <q-btn color="red"  icon="delete_forever" :loading="isprocessing" :readonly="isprocessing" ></q-btn>            
                 </div>
               </div>
   
               <div v-show="modo_rev == 1 && bd.linkado == 1" class="row">              
-                <q-btn v-on:click="conclui_rev_bt()" class="full-width" color="primary" label="Concluir revisão" :loading="isprocessing" :readonly="isprocessing"/>              
+                <q-btn v-on:click="conclui_rev_bt()" class="full-width" color="primary" label="Concluir revisão" :loading="isprocessing" :readonly="isprocessing"></q-btn>              
               </div>
                         
               <div v-show="modo_rev == 0 && bd.linkado == 1" class="row">              
-                  <q-btn v-on:click="rel_bt_pad()" class="full-width" color="primary" label="Gerar relatório" :loading="isprocessing" :readonly="isprocessing"/>              
+                  <q-btn v-on:click="rel_bt_pad()" class="full-width" color="primary" label="Gerar relatório" :loading="isprocessing" :readonly="isprocessing"></q-btn>              
               </div>
                   
             </div>      
@@ -167,16 +167,16 @@
       <q-card-section>     
         <div class="q-gutter-md row">      
           <div class="col-2">
-            <q-input dense v-model="form_rev.cod1" filled type="text" label="Código do banco 1" />
+            <q-input dense v-model="form_rev.cod1" filled type="text" label="Código do banco 1" ></q-input>
           </div>
           <div class="col-2">
-            <q-input dense v-model="form_rev.cod2" filled type="text" label="Código do banco 2" />
+            <q-input dense v-model="form_rev.cod2" filled type="text" label="Código do banco 2"></q-input>
           </div>
           <div class="col-1">
-            <q-input dense v-model="form_rev.escore" filled type="text" label="Esc. deter." />
+            <q-input dense v-model="form_rev.escore" filled type="text" label="Esc. deter."></q-input>
           </div>
           <div class="col-1">
-            <q-input dense v-model="form_rev.escore_prob" filled type="text" label="Esc. prob" />   
+            <q-input dense v-model="form_rev.escore_prob" filled type="text" label="Esc. prob" ></q-input>
           </div>
   
           <div class="col">              
@@ -218,26 +218,26 @@
           <div class="col-8">
             <div class="q-gutter-md row">        
           
-              <q-input :bg-color="cor_rev.dn" dense v-model="form_rev.dn1" filled type="date" label="Data de nascimento 1" />
-              <q-input :bg-color="cor_rev.dn" dense v-model="form_rev.dn2" filled type="date" label="Data de nascimento 2" />
+              <q-input :bg-color="cor_rev.dn" dense v-model="form_rev.dn1" filled type="date" label="Data de nascimento 1" ></q-input>
+              <q-input :bg-color="cor_rev.dn" dense v-model="form_rev.dn2" filled type="date" label="Data de nascimento 2" ></q-input>
     
-              <q-input dense v-model="form_rev.dr1" filled type="date" label="Data do registro 1" />
-              <q-input dense v-model="form_rev.dr2" filled type="date" label="Data do registro 2" />
+              <q-input dense v-model="form_rev.dr1" filled type="date" label="Data do registro 1" ></q-input>
+              <q-input dense v-model="form_rev.dr2" filled type="date" label="Data do registro 2" ></q-input>
             
     
             </div>
           </div>
           <div class="col-4">
             <div class="row q-gutter-sm">
-              <q-btn round :disabled="row_rev <= 1" v-on:click="row_rev = 1" color="primary" icon="first_page" />
-              <q-btn round :disabled="row_rev <= 1" v-on:click="row_rev -= 1" color="primary" icon="arrow_back_ios" />
+              <q-btn round :disabled="row_rev <= 1" v-on:click="row_rev = 1" color="primary" icon="first_page" ></q-btn>
+              <q-btn round :disabled="row_rev <= 1" v-on:click="row_rev -= 1" color="primary" icon="arrow_back_ios" ></q-btn>
   
               <q-btn square v-on:click="onPar('N')" color="red" label="Não par" />
               <q-btn square v-on:click="onPar('S')" color="green" label="Par" />
   
               
-              <q-btn round :disabled="row_rev >= max_rev" v-on:click="row_rev += 1" color="primary" icon="chevron_right" />
-              <q-btn round :disabled="row_rev >= max_rev" v-on:click="row_rev = max_rev" color="primary" icon="last_page" />
+              <q-btn round :disabled="row_rev >= max_rev" v-on:click="row_rev += 1" color="primary" icon="chevron_right" ></q-btn>
+              <q-btn round :disabled="row_rev >= max_rev" v-on:click="row_rev = max_rev" color="primary" icon="last_page" ></q-btn>
   
             </div>
           </div>
@@ -247,24 +247,24 @@
           
         <div class="q-gutter-md row">   
           <div class="col-1"> 
-            <q-input :bg-color="cor_rev.sx" dense v-model="form_rev.sexo1" filled type="text" label="Sexo 1" />      
+            <q-input :bg-color="cor_rev.sx" dense v-model="form_rev.sexo1" filled type="text" label="Sexo 1" ></q-input>     
           </div>
           <div class="col-1">             
-            <q-input :bg-color="cor_rev.sx" dense v-model="form_rev.sexo2" filled type="text" label="Sexo 2" />
+            <q-input :bg-color="cor_rev.sx" dense v-model="form_rev.sexo2" filled type="text" label="Sexo 2" ></q-input>
           </div>
   
           <div class="col-1">
-            <q-input :bg-color="cor_rev.ibge" dense v-model="form_rev.ibge1" filled type="text" label="Município 1" />
+            <q-input :bg-color="cor_rev.ibge" dense v-model="form_rev.ibge1" filled type="text" label="Município 1" ></q-input>
           </div>
           <div class="col-1">
-            <q-input :bg-color="cor_rev.ibge" dense v-model="form_rev.ibge2" filled type="text" label="Município 2" />
+            <q-input :bg-color="cor_rev.ibge" dense v-model="form_rev.ibge2" filled type="text" label="Município 2" ></q-input>
           </div>          
   
           <div class="col">
-            <q-input dense v-model="form_rev.end1" filled type="text" label="Endereço 1" />              
+            <q-input dense v-model="form_rev.end1" filled type="text" label="Endereço 1" ></q-input>              
           </div>
           <div class="col">          
-            <q-input dense v-model="form_rev.end2" filled type="text" label="Endereço 2" />         
+            <q-input dense v-model="form_rev.end2" filled type="text" label="Endereço 2" ></q-input>        
           </div>
         </div>
         
@@ -293,7 +293,7 @@
               <q-select filled v-model="selrel_avan" :options="list_rel_avan" label="Escolha quais bancos cruzar" map-options emit-value
               option-label="nome" option-value="id" >
                 <template v-slot:after>
-                  <q-btn dense round v-on:click="rel_bt_avan()" color="primary" icon="directions" :loading="isprocessing" :readonly="isprocessing"/>
+                  <q-btn dense round v-on:click="rel_bt_avan()" color="primary" icon="directions" :loading="isprocessing" :readonly="isprocessing" ></q-btn>
                   
                 </template>
               </q-select>   
@@ -316,9 +316,9 @@
             <div class="row">
               <div class="col">   
                 <q-file :loading="isprocessing" :readonly="isprocessing" field-name="File1" v-model="client_file_ext" rounded="" outlined="" name="file1_id" :label="textext">                              
-                    <q-btn round dense flat color="primary"  icon="send" label="Gerar" type="submit" :loading="isprocessing" :readonly="isprocessing" />                
+                    <q-btn round dense flat color="primary"  icon="send" label="Gerar" type="submit" :loading="isprocessing" :readonly="isprocessing"></q-btn>             
                 </q-file>    
-                <q-input v-show="false" filled v-model="cruzamento" label="Escolha quais bancos cruzar" map-options emit-value name="cruzamento" />
+                <q-input v-show="false" filled v-model="cruzamento" label="Escolha quais bancos cruzar" map-options emit-value name="cruzamento" ></q-btn>
               </div>                   
             </div>
           </q-card-section>      
@@ -339,7 +339,7 @@
       </q-card-section>
   
       <q-card-actions align="right">
-        <q-btn flat label="OK" color="primary" v-close-popup />
+        <q-btn flat label="OK" color="primary" v-close-popup ></q-btn>
       </q-card-actions>
     </q-card>
   </q-dialog> 

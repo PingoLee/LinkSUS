@@ -17,7 +17,7 @@ end
 
 
 route("/") do
-  Genie.Renderer.Html.html(Genie.Renderer.filepath("layouts\\templates\\linkage.jl.html"), layout = Genie.Renderer.filepath("layouts\\app.jl.html"), scripts="<script src='/js/cust/linksus.js'></script>")
+  Genie.Renderer.Html.raw_html(Genie.Renderer.filepath("layouts\\templates\\linkage.jl.html"), layout = Genie.Renderer.filepath("layouts\\app.jl.html"), scripts="<script src='/js/cust/linksus.js'></script>")
 end
 
 route("/get_number") do
@@ -100,7 +100,7 @@ end
 
 # CONFIGURAÇÃO
 route("/config") do
-  Genie.Renderer.Html.html(Genie.Renderer.filepath("layouts\\templates\\config.jl.html"), layout = Genie.Renderer.filepath("layouts\\app.jl.html"), scripts="<script setup src='/js/cust/config.js'></script>")
+  Genie.Renderer.Html.raw_html(Genie.Renderer.filepath("layouts\\templates\\config.jl.html"), layout = Genie.Renderer.filepath("layouts\\app.jl.html"), scripts="<script setup src='/js/cust/config.js'></script>")
 end
 
 route("/config_back") do 

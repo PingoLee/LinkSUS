@@ -9,7 +9,6 @@
 #   abspath("src", "Pag_config_rel.jl")
 # )
 
-println(abspath("src/importadores.jl"))
 
 include(abspath("src/importadores.jl"))
 using .importadores
@@ -23,6 +22,3 @@ include(abspath("src/Pag_config.jl"))
 using .Pag_config
 include(abspath("src/Pag_config_rel.jl"))
 using .Pag_config_rel
-
-
-println("concluido autoload.jl")
