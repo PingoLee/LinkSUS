@@ -9,7 +9,7 @@
         v-on:click="leftDrawerOpen = !leftDrawerOpen"
         aria-label="Menu"
         icon="menu"
-      />
+      ></q-btn>
 
       <q-toolbar-title>
         LinkSUS
@@ -73,8 +73,8 @@
                   <div class="text-h5 text-white">Colunas do banco</div>
                 </div>
                 <div class="col-auto">
-                  <q-btn v-if='!bdsel == false' dense square v-on:click="add_mult_var()" color="primary" icon="playlist_add" label="Mult. variável" class="btn-fixed-width" />
-                  <q-btn v-if='!bdsel == false' dense square v-on:click="add_col()" color="primary" icon="add" label="Adicionar variável" class="btn-fixed-width" />
+                  <q-btn v-if='!bdsel == false' dense square v-on:click="add_mult_var()" color="primary" icon="playlist_add" label="Mult. variável" class="btn-fixed-width" ></q-btn>
+                  <q-btn v-if='!bdsel == false' dense square v-on:click="add_col()" color="primary" icon="add" label="Adicionar variável" class="btn-fixed-width" ></q-btn>
                 </div>
               </div>
             </q-card-section>
@@ -131,7 +131,7 @@
                   <div class="text-h5 text-white">Lista de substituições</div>
                 </div>
                 <div class="col-auto">                
-                  <q-btn v-if='!bdsel == false' dense square v-on:click="add_replc_col()" color="primary" icon="add" label="Adicionar substituição" class="btn-fixed-width" />
+                  <q-btn v-if='!bdsel == false' dense square v-on:click="add_replc_col()" color="primary" icon="add" label="Adicionar substituição" class="btn-fixed-width" ></q-btn>
                 </div>
               </div>
             </q-card-section>
@@ -184,12 +184,12 @@
                 v-model="bdobs"
                 filled
                 type="textarea"
-              />
+              ></q-btn>
              
             </q-card-section>
             
             <q-card-actions align="right">    
-              <q-btn round v-on:click="bdobs_bt()" color="primary" icon="drive_file_rename_outline" />
+              <q-btn round v-on:click="bdobs_bt()" color="primary" icon="drive_file_rename_outline" ></q-btn>
             </q-card-actions>
             
           </q-card>
@@ -204,7 +204,7 @@
                   <div class="text-h5 text-white">Lista de funções de pré-processamento</div>
                 </div>
                 <div class="col-auto">                
-                  <q-btn v-if='!bdsel == false ' dense square v-on:click="add_prep_col()" color="primary" icon="add" label="Adicionar função" class="btn-fixed-width" />
+                  <q-btn v-if='!bdsel == false ' dense square v-on:click="add_prep_col()" color="primary" icon="add" label="Adicionar função" class="btn-fixed-width" ></q-btn>
                 </div>
               </div>
             </q-card-section>
@@ -252,14 +252,14 @@
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Variável</q-item-label>
                     <q-badge v-show="edit_row.ordem <= 8" color="red" align="top">Deve ser selecionado: {{col_obr[edit_row.ordem]}}</q-badge>
-                    <q-input dense outlined v-model="edit_row.col" />
+                    <q-input dense outlined v-model="edit_row.col" ></q-btn>
                     
                   </q-item-section>
                 </q-item>
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Função</q-item-label>
-                    <q-input dense outlined v-model="edit_row.function" />
+                    <q-input dense outlined v-model="edit_row.function" ></q-btn>
                   </q-item-section>
                 </q-item>  
                 <q-item v-show="edit_row.ordem > 8">
@@ -318,7 +318,7 @@
                 v-model="mult_data"
                 filled
                 type="textarea"
-              />
+              ></q-btn>
             </q-form>
           </q-card-section>
           <q-card-section>
@@ -364,14 +364,14 @@
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Variável antiga</q-item-label>
-                    <q-input dense outlined v-model="replc_edit_row.antigo" />
+                    <q-input dense outlined v-model="replc_edit_row.antigo" ></q-btn>
                     
                   </q-item-section>
                 </q-item>
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Novo valor</q-item-label>
-                    <q-input dense outlined v-model="replc_edit_row.novo" />
+                    <q-input dense outlined v-model="replc_edit_row.novo" ></q-btn>
                   </q-item-section>
                 </q-item>                         
               </q-list>
@@ -420,14 +420,14 @@
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Função</q-item-label>
-                    <q-input dense outlined v-model="prep_edit_row.function" />
+                    <q-input dense outlined v-model="prep_edit_row.function" ></q-btn>
                     
                   </q-item-section>
                 </q-item>
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Descrição</q-item-label>
-                    <q-input type="textarea" dense outlined v-model="prep_edit_row.definition" />
+                    <q-input type="textarea" dense outlined v-model="prep_edit_row.definition" ></q-btn>
                   </q-item-section>
                 </q-item>                         
               </q-list>

@@ -9,7 +9,7 @@
         v-on:click="leftDrawerOpen = !leftDrawerOpen"
         aria-label="Menu"
         icon="menu"
-      />
+      ></q-btn>
 
       <q-toolbar-title>
         LinkSUS
@@ -123,19 +123,19 @@
                 <q-select filled v-model="selcrz" :options="list_crz" label="Cruzamento de dados" map-options emit-value
                   option-label="nome" option-value="id">
                   <template v-slot:after>
-                    <q-btn dense round v-on:click="insert_new_rel()" color="primary" icon="add" />        
+                    <q-btn dense round v-on:click="insert_new_rel()" color="primary" icon="add" ></q-btn>        
                   </template>
                 </q-select>              
                 
                 <q-select filled v-model="selrel" :options="list_rel" label="Relatório" map-options emit-value
                   option-label="nome" option-value="id" >                   
                   <template v-slot:after>
-                    <q-btn :disable="selcrz == ''" dense round v-on:click="edit_def_rel(selrel)" color="primary" icon="edit" />     
+                    <q-btn :disable="selcrz == ''" dense round v-on:click="edit_def_rel(selrel)" color="primary" icon="edit" ></q-btn>     
                     <div class="col-auto">                
-                      <q-btn :disable="selrel == ''" dense square v-on:click="add_pos_col()" color="primary" icon="add" label="Pós-processamento" class="btn-fixed-width" />
+                      <q-btn :disable="selrel == ''" dense square v-on:click="add_pos_col()" color="primary" icon="add" label="Pós-processamento" class="btn-fixed-width" ></q-btn>
                     </div>   
                     <div class="col-auto">                
-                      <q-btn :disable="selrel == ''" dense square v-on:click="add_avan_col()" color="primary" icon="add" label="Rel avançado" class="btn-fixed-width" />
+                      <q-btn :disable="selrel == ''" dense square v-on:click="add_avan_col()" color="primary" icon="add" label="Rel avançado" class="btn-fixed-width" ></q-btn>
                     </div>   
                   </template>
                 </q-select>
@@ -298,7 +298,7 @@
               <q-item>
                 <q-item-section>
                   <q-item-label class="q-pb-xs">Váriavel original</q-item-label>
-                  <q-input disable dense outlined v-model="cz_row.var_org" />
+                  <q-input disable dense outlined v-model="cz_row.var_org" ></q-input>
                   
                 </q-item-section>
               </q-item>
@@ -307,7 +307,7 @@
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Váriavel no relatório</q-item-label>
-                    <q-input dense outlined v-model="cz_row.var_rel" />
+                    <q-input dense outlined v-model="cz_row.var_rel" ></q-input>
                     
                   </q-item-section>
                 </q-item>                                
@@ -351,7 +351,7 @@
               <q-item>
                 <q-item-section>
                   <q-item-label class="q-pb-xs">Nome do relatório</q-item-label>
-                  <q-input dense outlined v-model="info_rel.nome" />
+                  <q-input dense outlined v-model="info_rel.nome" ></q-input>
                   
                 </q-item-section>
               </q-item>
@@ -360,7 +360,7 @@
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Descrição do relatório</q-item-label>
-                    <q-input dense outlined v-model="info_rel.obs" type="textarea" />              
+                    <q-input dense outlined v-model="info_rel.obs" type="textarea" ></q-input>            
                   </q-item-section>
                 </q-item>                                
               </q-list>
@@ -408,14 +408,14 @@
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Função</q-item-label>
-                    <q-input dense outlined v-model="pos_edit_row.function" />
+                    <q-input dense outlined v-model="pos_edit_row.function" ></q-input>
                     
                   </q-item-section>
                 </q-item>
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Descrição</q-item-label>
-                    <q-input type="textarea" dense outlined v-model="pos_edit_row.definition" />
+                    <q-input type="textarea" dense outlined v-model="pos_edit_row.definition" ></q-input>
                   </q-item-section>
                 </q-item>                         
               </q-list>
@@ -464,19 +464,19 @@
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Nome</q-item-label>
-                    <q-input dense outlined v-model="avan_edit_row.nome" />                  
+                    <q-input dense outlined v-model="avan_edit_row.nome" ></q-input>                
                   </q-item-section>
                 </q-item>       
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Função</q-item-label>
-                    <q-input dense outlined v-model="avan_edit_row.function" />                  
+                    <q-input dense outlined v-model="avan_edit_row.function" ></q-input>                
                   </q-item-section>
                 </q-item>
                 <q-item>
                   <q-item-section>
                     <q-item-label class="q-pb-xs">Descrição</q-item-label>
-                    <q-input type="textarea" dense outlined v-model="avan_edit_row.definition" />
+                    <q-input type="textarea" dense outlined v-model="avan_edit_row.definition" ></q-input>
                   </q-item-section>
                 </q-item>                         
               </q-list>

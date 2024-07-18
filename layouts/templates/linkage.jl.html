@@ -191,12 +191,12 @@
           v-model="form_rev.nome1"
           label="Nome 1"  
           :bg-color="cor_rev.n"     
-          />
+        ></q-input>
         <q-input square outlined dense       
           v-model="form_rev.nome2"
           label="Nome 2" 
           :bg-color="cor_rev.n"       
-        />
+        ></q-input>
   
         <br>
   
@@ -204,13 +204,13 @@
           v-model="form_rev.nm_m1"
           label="Nome da mãe 1"   
           :bg-color="cor_rev.nm"     
-        />
+        ></q-input>
   
         <q-input square outlined dense
           v-model="form_rev.nm_m2"
           label="Nome da mãe 2"   
           :bg-color="cor_rev.nm"     
-        />
+        ></q-input>
   
         <br>
   
@@ -232,8 +232,8 @@
               <q-btn round :disabled="row_rev <= 1" v-on:click="row_rev = 1" color="primary" icon="first_page" ></q-btn>
               <q-btn round :disabled="row_rev <= 1" v-on:click="row_rev -= 1" color="primary" icon="arrow_back_ios" ></q-btn>
   
-              <q-btn square v-on:click="onPar('N')" color="red" label="Não par" />
-              <q-btn square v-on:click="onPar('S')" color="green" label="Par" />
+              <q-btn square v-on:click="onPar('N')" color="red" label="Não par" ></q-btn>
+              <q-btn square v-on:click="onPar('S')" color="green" label="Par" ></q-btn>
   
               
               <q-btn round :disabled="row_rev >= max_rev" v-on:click="row_rev += 1" color="primary" icon="chevron_right" ></q-btn>

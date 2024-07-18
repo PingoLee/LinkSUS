@@ -1352,4 +1352,15 @@ function rel_avan_falta_encer_z(rel_avan, cruz)
 end
 
 
+"Função que tem como objetivo gerar a precompilação das principais funções"
+function precompilar()
+  gerar_relatorio(1, 1, 2, "teste")
+  revisa_row(1)
+  revisa_row_par(1, "S")
+  rel_avan_dc_n_notif(1, 1)
+  rel_avan_falta_encer_d(1, 1)
+  rel_avan_falta_encer_c(1, 1)
+  rel_avan_falta_encer_z(1, 1)
+
+
 end # fim do modulo

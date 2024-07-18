@@ -29,6 +29,7 @@ ENV["PRECOMPILE"] == "true" && begin
       Genie.isrunning() || up(port=8001)
 
       HTTP.request("GET", "http://127.0.0.1:8001/") 
+      HTTP.get("http://127.0.0.1:8001/get_load")
       HTTP.get("http://127.0.0.1:8001/get_bd?cruzamento=2")
 
       down()

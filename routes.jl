@@ -3,7 +3,7 @@ using Genie.Router
 using Genie.Requests
 using Genie, GenieSession, GenieSessionFileSession, Genie.Renderer.Json
 
-import LinkSUS: Pag_ini, dictpl, Pag_config, Pag_config_rel
+# import LinkSUS: Pag_ini, dictpl, Pag_config, Pag_config_rel
 # using LinkSUS.Pag_config_rel
 using HTTP
 
@@ -136,7 +136,7 @@ end
 
 # CONFIGURAÇÃO rel
 route("/config_rel") do
-  Genie.Renderer.Html.html(Genie.Renderer.filepath("layouts\\templates\\config_rel.jl.html"), layout = Genie.Renderer.filepath("layouts\\app.jl.html"), scripts="<script setup src='/js/cust/config_rel.js'></script>")
+  Genie.Renderer.Html.raw_html(Genie.Renderer.filepath("layouts\\templates\\config_rel.jl.html"), layout = Genie.Renderer.filepath("layouts\\app.jl.html"), scripts="<script setup src='/js/cust/config_rel.js'></script>")
 end
 
 route("/config_rel_back") do 
@@ -163,6 +163,11 @@ route("/config_rel_back") do
     return Pag_config_rel.up_row_bt(request) |> json
   end
 end
+
+route("/precompile") do
+  
+end
+
 
 
 
