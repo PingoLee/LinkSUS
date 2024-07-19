@@ -292,9 +292,10 @@ end
 
 function create_storage_dir(name)
   try
-    mkdir(joinpath(@__DIR__, name))    
+    mkdir(abspath(name))    
     @warn "O diretório foi criado" 
   catch    
+    println("Erro ao criar o diretório")
   end
   return joinpath(@__DIR__, name)
 end
@@ -346,6 +347,11 @@ function receb_arquivos()
       return Json.json(resp)    
     end
     
+    # check if path exists
+    if !isdir(joinpath("data", "linksus", "bruto"))
+      create_storage_dir(joinpath("data", "linksus", "bruto"))
+    end   
+
     write(joinpath("data", "linksus", "bruto", string(b1.file, splitext(f.name)[2])), f.data)
     df = getfield(importadores, Symbol(b1.function))(joinpath("data", "linksus", "bruto", string(b1.file, splitext(f.name)[2]))) # Importa a base de dados como df  
 
@@ -470,6 +476,11 @@ end
 function formata_proc_bd(df::DataFrame, csv_save::Dict, row::DataFrameRow)
 
   insertcols!(df, 1, :index => axes(df, 1))
+
+  # check if path exists
+  if !isdir(joinpath("data", "linksus", "importado"))
+    create_storage_dir(joinpath("data", "linksus", "importado"))
+  end
   
   #Salva arquivo bruto
   open(joinpath("data", "linksus", "importado", string(csv_save[row.file], ".csv")), "w") do io
@@ -1361,6 +1372,6 @@ function precompilar()
   rel_avan_falta_encer_d(1, 1)
   rel_avan_falta_encer_c(1, 1)
   rel_avan_falta_encer_z(1, 1)
-
+end
 
 end # fim do modulo
